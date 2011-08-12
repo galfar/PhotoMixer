@@ -1,0 +1,12 @@
+syntax:glob
+
+TestData/*
+__history/*
+
+*.exe
+*.dsk
+*.tv*
+*.jdbg
+*.identcache
+*.dcu
+*.~*
