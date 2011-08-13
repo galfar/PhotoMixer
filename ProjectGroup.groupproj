@@ -9,6 +9,9 @@
 			<Projects Include="c:\program files\embarcadero\rad studio\7.0\lib\dclusr.dproj">
 				<Dependencies/>
 			</Projects>
+			<Projects Include="Test\PhotoMixerTests.dproj">
+				<Dependencies/>
+			</Projects>
 		</ItemGroup>
 		<ProjectExtensions>
 			<Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -35,14 +38,23 @@
 		<Target Name="dclusr:Make">
 			<MSBuild Targets="Make" Projects="c:\program files\embarcadero\rad studio\7.0\lib\dclusr.dproj"/>
 		</Target>
+		<Target Name="PhotoMixerTests">
+			<MSBuild Projects="Test\PhotoMixerTests.dproj"/>
+		</Target>
+		<Target Name="PhotoMixerTests:Clean">
+			<MSBuild Targets="Clean" Projects="Test\PhotoMixerTests.dproj"/>
+		</Target>
+		<Target Name="PhotoMixerTests:Make">
+			<MSBuild Targets="Make" Projects="Test\PhotoMixerTests.dproj"/>
+		</Target>
 		<Target Name="Build">
-			<CallTarget Targets="PhotoMixer;dclusr"/>
+			<CallTarget Targets="PhotoMixer;dclusr;PhotoMixerTests"/>
 		</Target>
 		<Target Name="Clean">
-			<CallTarget Targets="PhotoMixer:Clean;dclusr:Clean"/>
+			<CallTarget Targets="PhotoMixer:Clean;dclusr:Clean;PhotoMixerTests:Clean"/>
 		</Target>
 		<Target Name="Make">
-			<CallTarget Targets="PhotoMixer:Make;dclusr:Make"/>
+			<CallTarget Targets="PhotoMixer:Make;dclusr:Make;PhotoMixerTests:Make"/>
 		</Target>
 		<Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 	</Project>
