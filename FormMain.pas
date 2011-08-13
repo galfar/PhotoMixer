@@ -556,7 +556,7 @@ procedure TMainForm.TryStartingMixer;
       Src := Mixer.Source[I];
       if not TDirectory.Exists(Src.PhotoDir) then
       begin
-        SelectSource(I);   // TODO: switch tab too, make func to switch all and show hint
+        SelectSource(I);   
         ShowControlError(PathSourceDir, 'Source photo folder does not exist');
         Exit(False);
       end;
@@ -567,8 +567,8 @@ procedure TMainForm.TryStartingMixer;
           SelectSource(I);
           ShowControlError(EditSrcRefPhoto, 'Source reference photo not defined');
           Exit(False);
-        end;
-        if not TFile.Exists(Src.RefPhoto) then              
+        end
+        else if not TFile.Exists(Src.RefPhoto) then              
         begin
           SelectSource(I);
           ShowControlError(EditSrcRefPhoto, 'Source reference photo does not exist');
@@ -576,12 +576,18 @@ procedure TMainForm.TryStartingMixer;
         end;
       end;
     end;         
-
+        
     if not ForceDirectories(Mixer.Settings.OutputDir) then
     begin
       ShowControlError(PathOutput, 'Cannot create output folder');
       Exit(False);
     end;
+
+    if Mixer.Settings.SyncSources and (Mixer.Settings.RefSource < 0) then
+    begin
+      ShowControlError(ComboRefSource, 'Sync reference source not selected');
+      Exit(False);      
+    end;    
 
     Result := True;
   end;

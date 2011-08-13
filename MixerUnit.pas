@@ -58,7 +58,24 @@ type
   TSourceList = TObjectList<TSource>;
 
   TMixer = class
-  private
+  private 
+    type
+      TBaseWorker = class(TThread)      
+      protected
+        FOwner: TMixer;    
+      public 
+        constructor Create(AOwner: TMixer);
+        property Owner: TMixer read FOwner;
+      end;
+    
+      TMixWorker = class(TBaseWorker)
+      private 
+      
+      protected
+        procedure Execute; override;
+      end;
+      
+  private         
     FSources: TSourceList;
     FSettings: TSettings;
     FRunning: Boolean; 
@@ -264,10 +281,14 @@ var
   FileExts: TStringDynArray;
   FilterPredicate: TDirectory.TFilterPredicate;  
   FileTime: TDateTime;
-
+  MixWorker: TMixWorker;
+  
   procedure PrepareFileDefs;
+  var
+    Types: string;
   begin
-    FileExts := StrTokens(Settings.FileTypes, FileTypeSeparator); 
+    Types := StringReplace(Settings.FileTypes, ';', FileTypeSeparator, [rfReplaceAll]); 
+    FileExts := StrTokens(Types, FileTypeSeparator); 
     FilterPredicate := 
       function(const Path: string; const SearchRec: TSearchRec): Boolean
       var
@@ -287,6 +308,8 @@ var
 
 begin  
   Assert(not Running);
+
+  //MixWorker := TMixWorker.Create(Self);
 
   if Settings.SyncSources and not PrepareReferenceTimes then
     Exit(False);  
@@ -310,6 +333,8 @@ begin
       Inc(TotalFiles, Src.FileCount);  
       UI.Ping;  
     end;
+
+    
   
     for Src in FSources do
     begin      
@@ -366,6 +391,31 @@ procedure TMixer.DeleteSource(Index: Integer);
 begin
   FSources.Delete(Index);
 end;
+
+{ TMixer.TBaseWorker }
+
+constructor TMixer.TBaseWorker.Create(AOwner: TMixer);
+begin
+  inherited Create(False);
+  FOwner := AOwner;
+  FreeOnTerminate := True;
+end;
+
+{ TMixer.TWorker }
+
+procedure TMixer.TMixWorker.Execute;
+begin
+  TThread.NameThreadForDebugging('MixWorker', Self.ThreadID);
+
+{  if Owner.Settings.SyncSources and not PrepareReferenceTimes then
+    Exit;  
+
+  while not Terminated do
+  begin
+  
+  end;}
+end;
+
 
 
 end.
