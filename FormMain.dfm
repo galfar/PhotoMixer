@@ -214,7 +214,7 @@ object MainForm: TMainForm
     Top = 68
     Width = 681
     Height = 499
-    ActivePage = PageSource
+    ActivePage = PageSettings
     PropagateEnable = False
     Align = alClient
     object PageSettings: TJvStandardPage
@@ -596,6 +596,15 @@ object MainForm: TMainForm
       Caption = 'Clear'
       OnExecute = ActLogClearExecute
     end
+    object ActToolsSetDateTime: TAction
+      Category = 'Tools'
+      Caption = 'Set Photo Date && Time'
+      OnExecute = ActToolsSetDateTimeExecute
+    end
+    object ActToolsFileDateFromMeta: TAction
+      Category = 'Tools'
+      Caption = 'Set File Date From Photo Metadata'
+    end
   end
   object AppEvents: TApplicationEvents
     OnIdle = AppEventsIdle
@@ -638,6 +647,12 @@ object MainForm: TMainForm
     object ClearOutputFolder1: TMenuItem
       Action = ActToolsClearOutDir
     end
+    object SetPhotoDateTime1: TMenuItem
+      Action = ActToolsSetDateTime
+    end
+    object SetFileDateFromPhotoMetadata1: TMenuItem
+      Action = ActToolsFileDateFromMeta
+    end
   end
   object PopupLog: TPopupMenu
     Left = 104
@@ -653,14 +668,14 @@ object MainForm: TMainForm
     Left = 248
     Top = 376
   end
-  object Images: TSIImageList
+  object Images: TGFImageList
     ColorDepth = cd32Bit
     DrawingStyle = dsTransparent
     Masked = False
     Left = 40
     Top = 456
     Bitmap = {
-      494C010105000800340010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010105000800400010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000002000000001002000000000000020
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000003030

@@ -1,0 +1,48 @@
+﻿	<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+		<PropertyGroup>
+			<ProjectGuid>{E003A3C1-0170-452F-94F6-2749ED162FF5}</ProjectGuid>
+		</PropertyGroup>
+		<ItemGroup>
+			<Projects Include="PhotoMixer.dproj">
+				<Dependencies/>
+			</Projects>
+			<Projects Include="Test\PhotoMixerTests.dproj">
+				<Dependencies/>
+			</Projects>
+		</ItemGroup>
+		<ProjectExtensions>
+			<Borland.Personality>Default.Personality.12</Borland.Personality>
+			<Borland.ProjectType/>
+			<BorlandProject>
+				<Default.Personality/>
+			</BorlandProject>
+		</ProjectExtensions>
+		<Target Name="PhotoMixer">
+			<MSBuild Projects="PhotoMixer.dproj"/>
+		</Target>
+		<Target Name="PhotoMixer:Clean">
+			<MSBuild Projects="PhotoMixer.dproj" Targets="Clean"/>
+		</Target>
+		<Target Name="PhotoMixer:Make">
+			<MSBuild Projects="PhotoMixer.dproj" Targets="Make"/>
+		</Target>
+		<Target Name="PhotoMixerTests">
+			<MSBuild Projects="Test\PhotoMixerTests.dproj"/>
+		</Target>
+		<Target Name="PhotoMixerTests:Clean">
+			<MSBuild Projects="Test\PhotoMixerTests.dproj" Targets="Clean"/>
+		</Target>
+		<Target Name="PhotoMixerTests:Make">
+			<MSBuild Projects="Test\PhotoMixerTests.dproj" Targets="Make"/>
+		</Target>
+		<Target Name="Build">
+			<CallTarget Targets="PhotoMixer;PhotoMixerTests"/>
+		</Target>
+		<Target Name="Clean">
+			<CallTarget Targets="PhotoMixer:Clean;PhotoMixerTests:Clean"/>
+		</Target>
+		<Target Name="Make">
+			<CallTarget Targets="PhotoMixer:Make;PhotoMixerTests:Make"/>
+		</Target>
+		<Import Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')" Project="$(BDS)\Bin\CodeGear.Group.Targets"/>
+	</Project>

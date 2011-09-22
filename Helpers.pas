@@ -4,9 +4,11 @@ interface
 
 uses
   Types, Classes, SysUtils, Windows, Controls, Forms, FileCtrl, rkSmartPath, 
-  ImagingUtility, JvBalloonHint;
+  ImagingUtility, JvBalloonHint, Generics.Collections;
 
 type
+  TDictionaryIntInt = TDictionary<Integer, Integer>;
+
   THandle<T> = reference to function: T;  
   TSmartPointer<T: class> = class(TInterfacedObject, THandle<T>)
   private
