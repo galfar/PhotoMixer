@@ -7,8 +7,10 @@ uses
   SysUtils,
   Classes, 
   DateUtils,
+  Generics.Defaults,
   Generics.Collections, 
   IoUtils,
+  ActiveX,
   ImagingUtility,
   CCR.Exif,
   Helpers;
@@ -49,30 +51,47 @@ type
 
   IUIBridge = interface
     procedure ShowMessage(MsgType: TMessageType; const MsgFmt: string; const Args: array of const);
-    procedure Ping;
     procedure OnBegin;
     procedure OnEnd(UserAbort: Boolean);
     procedure OnProgress(Current, Total: Integer);
   end;
+
+  IWorkerBridge = interface
+    procedure Started;
+    procedure Finished;
+    procedure ShowMessage(MsgType: TMessageType; const MsgFmt: string; const Args: array of const);
+    procedure Progress(Current, Total: Integer);
+  end;
   
   TSourceList = TObjectList<TSource>;
 
-  TMixer = class
+  TMixer = class(TSingletonImplementation, IWorkerBridge)
   private 
     type
       TBaseWorker = class(TThread)      
       protected
-        FOwner: TMixer;    
+        FBridge: IWorkerBridge;                      
       public 
-        constructor Create(AOwner: TMixer);
-        property Owner: TMixer read FOwner;
+        constructor Create(ABridge: IWorkerBridge);
+        property Bridge: IWorkerBridge read FBridge;
       end;
     
       TMixWorker = class(TBaseWorker)
       private 
-      
+        FDayDict: TDictionaryIntInt;
+        FSettings: TSettings; 
+        FSources: TSourceList;
+        procedure PrepareReferenceTimes;
+        function ReadPhotoDate(const FileName: string; out FromExif: Boolean): TDateTime;
+        procedure MoveAndRenameByTime(Src: TSource; const FileName: string);
+
+        property DayDict: TDictionaryIntInt read FDayDict;                    
+        property Settings: TSettings read FSettings;                    
+        property Sources: TSourceList read FSources;                    
       protected
         procedure Execute; override;
+      public
+        constructor Create(ABridge: IWorkerBridge; ASettings: TSettings; ASources: TSourceList);
       end;
       
   private         
@@ -80,15 +99,17 @@ type
     FSettings: TSettings;
     FRunning: Boolean; 
     FAborted: Boolean;   
-    FUI: IUIBridge;    
-    FDayDict: TDictionary<Integer, Integer>;
-    function GetSource(Index: Integer): TSource;
-    function PrepareReferenceTimes: Boolean;
-    function ReadPhotoDate(const FileName: string; out FromExif: Boolean): TDateTime;
-    procedure MoveAndRenameByTime(Src: TSource; const FileName: string);
-    function GetSourceCount: Integer;
-    property UI: IUIBridge read FUI;
-    property DayDict: TDictionary<Integer, Integer> read FDayDict;
+    FUI: IUIBridge; 
+    FMixWorker: TMixWorker;       
+    function GetSource(Index: Integer): TSource; 
+    function GetSourceCount: Integer;    
+    property Sources: TSourceList read FSources;  
+
+    // IWorkerBridge
+    procedure Started;
+    procedure Finished;  
+    procedure ShowMessage(MsgType: TMessageType; const MsgFmt: string; const Args: array of const);
+    procedure Progress(Current, Total: Integer);
   public
     constructor Create(UI: IUIBridge);
     destructor Destroy; override;
@@ -97,7 +118,7 @@ type
     procedure DeleteSource(Index: Integer); 
     procedure Reset;
 
-    function Start: Boolean;
+    procedure Start;
     procedure Abort;
     
     property Settings: TSettings read FSettings;
@@ -124,7 +145,94 @@ begin
   inherited;
 end;
 
-function TMixer.ReadPhotoDate(const FileName: string; out FromExif: Boolean): TDateTime;
+procedure TMixer.Reset;
+begin
+  Settings.OutputDir := '';
+  FSources.Clear;
+end;
+
+function TMixer.GetSource(Index: Integer): TSource;
+begin
+  Result := FSources[Index];
+end;
+
+function TMixer.GetSourceCount: Integer;
+begin
+  Result := FSources.Count;
+end;
+
+procedure TMixer.Start;
+begin  
+  Assert(not Running);      
+  Assert(FMixWorker = nil);
+  FMixWorker := TMixWorker.Create(Self, Settings, Sources);
+end;
+
+procedure TMixer.Started;
+begin
+  FRunning := True;
+  FAborted := False; 
+  FUI.OnBegin; 
+end;
+
+procedure TMixer.Finished;
+begin
+  FRunning := False;
+  FUI.OnEnd(FAborted);
+  FMixWorker := nil;
+end;
+
+procedure TMixer.Abort;
+begin
+  Assert(FMixWorker <> nil);
+  FAborted := True;
+  FRunning := False;
+  FMixWorker.Terminate;
+end;
+
+procedure TMixer.Progress(Current, Total: Integer);
+begin
+  FUI.OnProgress(Current, Total);
+end;
+
+procedure TMixer.ShowMessage(MsgType: TMessageType; const MsgFmt: string; const Args: array of const);
+begin
+  FUI.ShowMessage(MsgType, MsgFmt, Args);
+end;
+
+function TMixer.AddSource: TSource;
+var 
+  Src: TSource;
+begin
+  Src := TSource.Create;  
+  FSources.Add(Src);                                   
+  Result := Src;
+end;
+
+procedure TMixer.DeleteSource(Index: Integer);
+begin
+  FSources.Delete(Index);
+end;
+
+{ TMixer.TBaseWorker }
+
+constructor TMixer.TBaseWorker.Create(ABridge: IWorkerBridge);
+begin
+  inherited Create(False);
+  FBridge := ABridge;
+  FreeOnTerminate := True;
+end;
+
+{ TMixer.TMixWorker }
+
+constructor TMixer.TMixWorker.Create(ABridge: IWorkerBridge; ASettings: TSettings; ASources: TSourceList);
+begin
+  inherited Create(ABridge);
+  FSettings := ASettings;
+  FSources := ASources;
+end;
+
+function TMixer.TMixWorker.ReadPhotoDate(const FileName: string; out FromExif: Boolean): TDateTime;
 var
   Exif: TExifData;
 begin
@@ -151,29 +259,22 @@ begin
     Result := TFile.GetLastWriteTime(FileName);  
 end;
 
-procedure TMixer.Reset;
-begin
-  Settings.OutputDir := '';
-  FSources.Clear;
-end;
-
-function TMixer.PrepareReferenceTimes: Boolean;
+procedure TMixer.TMixWorker.PrepareReferenceTimes;
 var
   Src, RefSrc: TSource;
   RefDate, SrcDate: TDateTime;
   RefFile: string;
   FromExif: Boolean;
-  RefDateSec, SrcDateSec: Integer;
 begin
-  Assert((Settings.RefSource >= 0) and (Settings.RefSource < FSources.Count));
-  RefSrc := FSources[Settings.RefSource];
+  Assert((Settings.RefSource >= 0) and (Settings.RefSource < Sources.Count));
+  RefSrc := Sources[Settings.RefSource];
   RefFile := RefSrc.RefPhoto;
   
   RefDate := ReadPhotoDate(RefFile, FromExif);
-  UI.ShowMessage(mtInfo, 'Main reference time: %s (source: %s)', [DateTimeToStr(RefDate), 
+  Bridge.ShowMessage(mtInfo, 'Main reference time: %s (source: %s)', [DateTimeToStr(RefDate), 
     Iff(FromExif, 'EXIF', 'file system')]);
 
-  for Src in FSources do
+  for Src in Sources do
   begin
     if Src = RefSrc then
     begin
@@ -197,24 +298,12 @@ begin
         Assert(False);
       end;            
     end;
-    UI.ShowMessage(mtInfo, 'Source "%s" has time shift of %s seconds', [Src.Name, 
+    Bridge.ShowMessage(mtInfo, 'Source "%s" has time shift of %s seconds', [Src.Name, 
       IntToStrFmt(Src.TimeShift)]);
   end;
-
-  Result := True;
 end;
 
-function TMixer.GetSource(Index: Integer): TSource;
-begin
-  Result := FSources[Index];
-end;
-
-function TMixer.GetSourceCount: Integer;
-begin
-  Result := FSources.Count;
-end;
-
-procedure TMixer.MoveAndRenameByTime(Src: TSource; const FileName: string);
+procedure TMixer.TMixWorker.MoveAndRenameByTime(Src: TSource; const FileName: string);
 var
   DateTime: TDateTime;
   DestFile: string;
@@ -237,7 +326,7 @@ begin
           Exif.SetAllDateTimeValues(DateTime);
           Exif.UpdateFile;
         except
-          UI.ShowMessage(mtWarning, 'Failed to update EXIF metadata of file "%s"', [FileName]);  
+          Bridge.ShowMessage(mtWarning, 'Failed to update EXIF metadata of file "%s"', [FileName]);  
         end;  
       finally
         Exif.Free;
@@ -263,25 +352,23 @@ begin
     [YearOf(DateTime), MonthOf(DateTime), DayOf(DateTime), HourOf(DateTime), MinuteOf(DateTime), DayFot]);
       
   if TFile.Exists(DestFile) and not DeleteFile(DestFile) then
-    UI.ShowMessage(mtWarning, 'Failed to delete old existing file "%s". Opened in another process?', [FileName]);  
+    Bridge.ShowMessage(mtWarning, 'Failed to delete old existing file "%s". Opened in another process?', [FileName]);  
             
   try
     TFile.Move(FileName, DestFile);
     TFile.SetLastWriteTime(DestFile, DateTime);                   
   except
-    UI.ShowMessage(mtWarning, 'Failed to rename file "%s" to "%s". Opened in another process?', [FileName, DestFile]);  
+    Bridge.ShowMessage(mtWarning, 'Failed to rename file "%s" to "%s". Opened in another process?', [FileName, DestFile]);  
   end;
 end;
 
-function TMixer.Start: Boolean;
+procedure TMixer.TMixWorker.Execute;
 var
-  I, SrcCounter, TotalFiles, CurrFile: Integer;
+  TotalFiles, CurrFile: Integer;
   Src: TSource;
   FileName, TmpFile: string;  
   FileExts: TStringDynArray;
   FilterPredicate: TDirectory.TFilterPredicate;  
-  FileTime: TDateTime;
-  MixWorker: TMixWorker;
   
   procedure PrepareFileDefs;
   var
@@ -293,9 +380,8 @@ var
       function(const Path: string; const SearchRec: TSearchRec): Boolean
       var
         Ext: string;
-        Len, Offset: Integer;
+        Offset: Integer;
       begin
-        Len := Length(Path);
         for Ext in FileExts do
         begin
           Offset := Length(SearchRec.Name) - Length(Ext) + 1;
@@ -306,39 +392,33 @@ var
       end;    
   end;  
 
-begin  
-  Assert(not Running);
+begin
+  TThread.NameThreadForDebugging('MixWorker', Self.ThreadID);
+  CoInitialize(nil); // Needed for some CRR,Exif XMP stuff :(   
+    
+  if Settings.SyncSources then 
+    PrepareReferenceTimes;
 
-  //MixWorker := TMixWorker.Create(Self);
-
-  if Settings.SyncSources and not PrepareReferenceTimes then
-    Exit(False);  
-
-  FDayDict := TDictionary<Integer, Integer>.Create;  
+  FDayDict := TDictionaryIntInt.Create;  
   PrepareFileDefs;     
-                 
-  FRunning := True;    
+    
   TotalFiles := 0;
   CurrFile := 0;
-  
-  FUI.OnBegin; 
+  Bridge.Started;
   
   try 
-    FUI.ShowMessage(mtInfo, 'Building file lists...', []);
+    Bridge.ShowMessage(mtInfo, 'Building file lists...', []);
     for Src in FSources do
     begin
       Src.FileList := TDirectory.GetFiles(Src.PhotoDir, '*.*', 
         TSearchOption.soAllDirectories, FilterPredicate);     
       Src.FileCount := Length(Src.FileList);  
       Inc(TotalFiles, Src.FileCount);  
-      UI.Ping;  
     end;
-
-    
   
-    for Src in FSources do
+    for Src in Sources do
     begin      
-      FUI.ShowMessage(mtImportant, 'Processing source "%s"...', [Src.Name]);      
+      Bridge.ShowMessage(mtImportant, 'Processing source "%s"...', [Src.Name]);      
       
       for FileName in Src.FileList do
       begin
@@ -347,73 +427,27 @@ begin
         if CopyFile(FileName, TmpFile, True) then 
           MoveAndRenameByTime(Src, TmpFile)
         else
-          UI.ShowMessage(mtWarning, 'Failed to copy file to output folder "%s"', [FileName]);  
+          Bridge.ShowMessage(mtWarning, 'Failed to copy file to output folder "%s"', [FileName]);  
           
-        UI.Ping;
         Inc(CurrFile);
-        UI.OnProgress(CurrFile, TotalFiles);
+        Bridge.Progress(CurrFile, TotalFiles);
 
-        if FAborted then
+        if Terminated then
           Break;
       end;   
 
       Src.FileList := nil;
       
-      if FAborted then
+      if Terminated then
         Break
       else
-        UI.ShowMessage(mtInfo, '%d files processed', [Src.FileCount]);       
-    end;  
-  finally    
-    FDayDict.Free;    
-    UI.OnEnd(FAborted);
-    FRunning := False; 
-    FAborted := False;    
+        Bridge.ShowMessage(mtInfo, '%d files processed', [Src.FileCount]);       
+    end;    
+  finally
+    FDayDict.Free;  
+    Bridge.Finished;        
+    CoUninitialize(); 
   end;  
-end;
-
-procedure TMixer.Abort;
-begin
-  FAborted := True;
-  FRunning := False;
-end;
-
-function TMixer.AddSource: TSource;
-var 
-  Src: TSource;
-begin
-  Src := TSource.Create;  
-  FSources.Add(Src);                                   
-  Result := Src;
-end;
-
-procedure TMixer.DeleteSource(Index: Integer);
-begin
-  FSources.Delete(Index);
-end;
-
-{ TMixer.TBaseWorker }
-
-constructor TMixer.TBaseWorker.Create(AOwner: TMixer);
-begin
-  inherited Create(False);
-  FOwner := AOwner;
-  FreeOnTerminate := True;
-end;
-
-{ TMixer.TWorker }
-
-procedure TMixer.TMixWorker.Execute;
-begin
-  TThread.NameThreadForDebugging('MixWorker', Self.ThreadID);
-
-{  if Owner.Settings.SyncSources and not PrepareReferenceTimes then
-    Exit;  
-
-  while not Terminated do
-  begin
-  
-  end;}
 end;
 
 

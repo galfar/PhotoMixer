@@ -6,11 +6,11 @@ uses
   Types, Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, rkVistaPanel, ExtCtrls, ComCtrls, JvExControls, JvPageList,
   rkSmartTabs, StdCtrls, rkGlassButton, rkSmartPath, JvExStdCtrls, ShlObj, 
-  JvHtControls, JvExExtCtrls, JvExtComponent, FileCtrl, JvDriveCtrls, MixerUnit,
+  JvHtControls, JvExExtCtrls, JvExtComponent, FileCtrl, MixerUnit,
   ImgList, ActnList, AppEvnts, JvComponentBase, JvAppStorage, JvAppIniStorage,
   JvFormPlacement, IoUtils, FormAbout, Menus, DateUtils, JvRichEdit,
-  rkShellPath, rkPathViewer, ShellCtrls, ExtDlgs, Mask, JvExMask, JvSpin, 
-  JclFileUtils, UICustomComponents, JvBalloonHint;
+  ShellCtrls, ExtDlgs, Mask, JvExMask, JvSpin, JclFileUtils,
+  JvBalloonHint, GFImageList;
 
 type
   TMainForm = class(TForm, IUIBridge)
@@ -70,11 +70,15 @@ type
     EditNamePattern: TEdit;
     ActLogClear: TAction;
     ActLogCopy: TAction;
-    Images: TSIImageList;
+    Images: TGFImageList;
     ProgressBar: TProgressBar;
     ControlHint: TJvBalloonHint;
     OpenSettingsDialog: TOpenDialog;
     SaveSettingsDialog: TSaveDialog;
+    ActToolsSetDateTime: TAction;
+    SetPhotoDateTime1: TMenuItem;
+    ActToolsFileDateFromMeta: TAction;
+    SetFileDateFromPhotoMetadata1: TMenuItem;
     procedure TabsMainCloseTab(Sender: TObject; Index: Integer;
       var Close: Boolean);
     procedure TabsMainTabChange(Sender: TObject);
@@ -107,8 +111,9 @@ type
     procedure ActToolsClearOutDirExecute(Sender: TObject);
     procedure ActToolsSaveSettingsExecute(Sender: TObject);
     procedure ActToolsLoadSettingsExecute(Sender: TObject);
+    procedure ActToolsSetDateTimeExecute(Sender: TObject);
   private
-    FMixer: TMixer;
+    Mixer: TMixer;
     UserDocsDir: string;
     StartTime: TDateTime;
     LogFont: TFont;    
@@ -129,13 +134,11 @@ type
     
     // IUIBridge methods
     procedure ShowMessage(MsgType: TMessageType; const MsgFmt: string; const Args: array of const);
-    procedure Ping;
     procedure OnBegin;
     procedure OnEnd(UserAbort: Boolean);
     procedure OnProgress(Current, Total: Integer);
   public
     Version: TJclFileVersionInfo;
-    property Mixer: TMixer read FMixer;
   end;
 
 const
@@ -152,7 +155,7 @@ var
 
 implementation
 
-uses Helpers;
+uses Helpers, FormToolsSetDateTime;
 
 {$R *.dfm}
 
@@ -243,6 +246,15 @@ begin
   end;    
 end;
 
+procedure TMainForm.ActToolsSetDateTimeExecute(Sender: TObject);
+var
+  Dir: string;
+begin
+
+  if Helpers.SelectDir('',  then
+
+end;
+
 procedure TMainForm.AppEventsIdle(Sender: TObject; var Done: Boolean);
 begin
   if not Mixer.Running then
@@ -261,8 +273,7 @@ begin
   TabsMain.Enabled := not Mixer.Running;
   BtnAddSource.Enabled := not Mixer.Running;
   BtnTools.Enabled := not Mixer.Running;
-  ProgressBar.Visible := Mixer.Running;
-
+ 
   LabRefSource.Visible := Mixer.Settings.SyncSources;
   ComboRefSource.Visible := Mixer.Settings.SyncSources;
   PanelRefSource.Visible := Mixer.Settings.SyncSources;
@@ -273,7 +284,7 @@ begin
     PanelSyncShift.Visible := Mixer.Source[TabsMain.ActiveTab - 1].SyncMode = smExplicitShift;
   end;
     
-  Done := not Mixer.Running;
+  Done := True;
 end;
 
 procedure TMainForm.BtnAboutClick(Sender: TObject);
@@ -357,7 +368,7 @@ end;
 
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
-  FMixer := TMixer.Create(Self);  
+  Mixer := TMixer.Create(Self);
   UserDocsDir := PathOutput.GetSpecialFolderPath(CSIDL_MYDOCUMENTS);
   Version := TJclFileVersionInfo.Create(MainInstance);
   Caption := Version.ProductName + ' ' + Version.FileVersion;
@@ -374,7 +385,7 @@ end;
 procedure TMainForm.FormDestroy(Sender: TObject);
 begin
   SaveCurrentSettings(IniFile);  
-  FMixer.Free;
+  Mixer.Free;
   LogFont.Free;
   Version.Free;
 end;
@@ -600,6 +611,8 @@ begin
     Exit;
  
   SetWinControlState(PageSettings, False, LogView);
+  Progressbar.Position := 0;
+  ProgressBar.Visible := True;  
   Mixer.Start;
 end;
 
@@ -625,33 +638,37 @@ end;
 procedure TMainForm.ShowMessage(MsgType: TMessageType; const MsgFmt: string;
   const Args: array of const);
 var
-  Msg: string;  
-begin       
+  Msg: string; 
+  Proc: TThreadProcedure;   
+begin     
   Msg := Format(MsgFmt, Args) + SLineBreak;   
-  LogFont.Color := clWindowText;
-  LogFont.Style := [];
+  Proc := 
+    procedure     
+    begin           
+      LogFont.Color := clWindowText;
+      LogFont.Style := [];
   
-  case MsgType of
-    mtImportant: LogFont.Style := [fsBold];
-    mtWarning:   
-      begin
-        LogFont.Color := clOlive;
-        Msg := 'Warning: ' + Msg;
-      end;                               
-    mtError:
-      begin
-        LogFont.Style := [fsBold];
-        LogFont.Color := clRed;
-        Msg := 'Fatal Error: ' + Msg;
-      end;             
-  end;
-  LogView.AddFormatText(Msg, LogFont);
-end;
+      case MsgType of
+        mtImportant: LogFont.Style := [fsBold];
+        mtWarning:   
+          begin
+            LogFont.Color := clOlive;
+            Msg := 'Warning: ' + Msg;
+          end;                               
+        mtError:
+          begin
+            LogFont.Style := [fsBold];
+            LogFont.Color := clRed;
+            Msg := 'Fatal Error: ' + Msg;
+          end;             
+      end;
+      LogView.AddFormatText(Msg, LogFont);
+    end;  
 
-procedure TMainForm.Ping;
-begin
-  Application.ProcessMessages;
-  Application.DoApplicationIdle;
+  if (TThread.CurrentThread.ThreadID <> MainThreadID) then
+    TThread.Synchronize(TThread.CurrentThread, Proc)
+  else 
+    Proc;    
 end;
 
 procedure TMainForm.OnBegin;
@@ -672,8 +689,13 @@ end;
 
 procedure TMainForm.OnProgress(Current, Total: Integer);
 begin  
-  ProgressBar.Max := Total;
-  ProgressBar.Position := Current;
+  Assert(TThread.CurrentThread.ThreadID <> MainThreadID);
+  TThread.Synchronize(TThread.CurrentThread, 
+    procedure 
+    begin
+      ProgressBar.Max := Total;
+      ProgressBar.Position := Current;
+    end);  
 end;
 
 end.

@@ -1,5 +1,7 @@
 syntax:glob
 
+dunit.ini
+
 TestData/*
 __history/*
 
@@ -10,3 +12,7 @@ __history/*
 *.identcache
 *.dcu
 *.~*
+*.jdbg
+*.map
+*.local
+*.drc
