@@ -5,12 +5,12 @@ interface
 uses
   Types, Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, rkVistaPanel, ExtCtrls, ComCtrls, JvExControls, JvPageList,
-  rkSmartTabs, StdCtrls, rkGlassButton, rkSmartPath, JvExStdCtrls, ShlObj, 
-  JvHtControls, JvExExtCtrls, JvExtComponent, FileCtrl, MixerUnit,
+  rkSmartTabs, StdCtrls, rkGlassButton, rkSmartPath, JvExStdCtrls, ShlObj,
+  JvHtControls, JvExExtCtrls, JvExtComponent, FileCtrl,
   ImgList, ActnList, AppEvnts, JvComponentBase, JvAppStorage, JvAppIniStorage,
   JvFormPlacement, IoUtils, FormAbout, Menus, DateUtils, JvRichEdit,
-  ShellCtrls, ExtDlgs, Mask, JvExMask, JvSpin, JclFileUtils,
-  JvBalloonHint, GFImageList;
+  ShellCtrls, ExtDlgs, Mask, JvSpin, JclFileUtils,
+  JvBalloonHint, GFImageList, Helpers, Tools, Mixer, JvExMask;
 
 type
   TMainForm = class(TForm, IUIBridge)
@@ -59,7 +59,6 @@ type
     PanelRefSource: TPanel;
     LabRefSource: TLabel;
     ComboRefSource: TComboBox;
-    OpenPictureDlg: TOpenPictureDialog;
     EditSrcSyncShift: TJvSpinEdit;
     ActToolsLoadSettings: TAction;
     ActToolsSaveSettings: TAction;
@@ -73,11 +72,9 @@ type
     Images: TGFImageList;
     ProgressBar: TProgressBar;
     ControlHint: TJvBalloonHint;
-    OpenSettingsDialog: TOpenDialog;
-    SaveSettingsDialog: TSaveDialog;
     ActToolsSetDateTime: TAction;
     SetPhotoDateTime1: TMenuItem;
-    ActToolsFileDateFromMeta: TAction;
+    ActToolsFileFromMeta: TAction;
     SetFileDateFromPhotoMetadata1: TMenuItem;
     procedure TabsMainCloseTab(Sender: TObject; Index: Integer;
       var Close: Boolean);
@@ -112,12 +109,14 @@ type
     procedure ActToolsSaveSettingsExecute(Sender: TObject);
     procedure ActToolsLoadSettingsExecute(Sender: TObject);
     procedure ActToolsSetDateTimeExecute(Sender: TObject);
+    procedure ActToolsFileFromMetaExecute(Sender: TObject);
   private
     Mixer: TMixer;
+    Tools: TTools;
     UserDocsDir: string;
     StartTime: TDateTime;
     LogFont: TFont;    
-    
+
     procedure SelectSource(Index: Integer);
     procedure LoadLastSettings(Ini: TJvAppIniFileStorage);
     procedure SaveCurrentSettings(Ini: TJvAppIniFileStorage);
@@ -141,21 +140,13 @@ type
     Version: TJclFileVersionInfo;
   end;
 
-const
-  STabSettingsName = 'Settings';
-  SDefaultFileTypes = 'jpg, jpeg, avi, mov, png';
-  SAppDataDir = 'PhotoMixer';
-  SSettingsFile = 'Settings.ini';
-  SSettingsSourcesPath = 'Sources' + PathDelim;
-  SSettingsOptionsPath = 'Options' + PathDelim;
-  SSettingsFilter = 'PhotoMixer settings (*.pms)|*.pms';
-  
 var
   MainForm: TMainForm;
 
 implementation
 
-uses Helpers, FormToolsSetDateTime;
+uses
+  FormToolsSetDateTime, DataModule, PM.Consts;
 
 {$R *.dfm}
 
@@ -205,20 +196,28 @@ begin
     ShowMessage(mtInfo, 'Deleted %d files in folder: %s', [Length(FileList), Mixer.Settings.OutputDir]);      
   end
   else
-    // TODO: error
+    ShowMessage(mtError, 'Failed to delete files in folder: %s', [Mixer.Settings.OutputDir]);
+end;
+
+procedure TMainForm.ActToolsFileFromMetaExecute(Sender: TObject);
+var
+  Dir: string;
+begin
+  if SelectDir('Select photo folder', Dir, False, Self) then
+    Tools.SetFileTimeFromMeta(Dir);
 end;
 
 procedure TMainForm.ActToolsLoadSettingsExecute(Sender: TObject);
 var
   Ini: TJvAppIniFileStorage;
 begin
-  if OpenSettingsDialog.Execute then
+  if MainDataModule.OpenSettingsDialog.Execute then
   begin
     Ini := TJvAppIniFileStorage.Create(nil);    
     try
       Ini.StorageOptions := IniFile.StorageOptions;
       Ini.Location := flCustom;
-      Ini.FileName := OpenSettingsDialog.FileName;
+      Ini.FileName := MainDataModule.OpenSettingsDialog.FileName;
 
       LoadLastSettings(Ini);      
     finally
@@ -231,28 +230,29 @@ procedure TMainForm.ActToolsSaveSettingsExecute(Sender: TObject);
 var
   Ini: TJvAppIniFileStorage;
 begin
-  if SaveSettingsDialog.Execute then
+  if MainDataModule.SaveSettingsDialog.Execute then
   begin
     Ini := TJvAppIniFileStorage.Create(nil);    
     try
       Ini.StorageOptions := IniFile.StorageOptions;
       Ini.Location := flCustom;
-      Ini.FileName := SaveSettingsDialog.FileName;
+      Ini.FileName := MainDataModule.SaveSettingsDialog.FileName;
 
       SaveCurrentSettings(Ini);      
     finally
       Ini.Free;
-    end;    
+    end;
   end;    
 end;
 
 procedure TMainForm.ActToolsSetDateTimeExecute(Sender: TObject);
-var
-  Dir: string;
 begin
-
-  if Helpers.SelectDir('',  then
-
+  ToolsSetDateTimeForm.ApplySettings(Tools.Settings);
+  if ToolsSetDateTimeForm.ShowModal = mrOk then
+  begin
+    ToolsSetDateTimeForm.UpdateSettings(Tools.Settings);
+    Tools.SetPhotoDateTime;
+  end;
 end;
 
 procedure TMainForm.AppEventsIdle(Sender: TObject; var Done: Boolean);
@@ -317,11 +317,11 @@ end;
 
 procedure TMainForm.Button3Click(Sender: TObject);
 begin
-  OpenPictureDlg.InitialDir := Mixer.Source[GetSourceIndex].PhotoDir;
-  if OpenPictureDlg.Execute then
+  MainDataModule.OpenPictureDlg.InitialDir := Mixer.Source[GetSourceIndex].PhotoDir;
+  if MainDataModule.OpenPictureDlg.Execute then
   begin
-    Mixer.Source[GetSourceIndex].RefPhoto := OpenPictureDlg.FileName;
-    EditSrcRefPhoto.Text := ExtractFileName(OpenPictureDlg.FileName);    
+    Mixer.Source[GetSourceIndex].RefPhoto := MainDataModule.OpenPictureDlg.FileName;
+    EditSrcRefPhoto.Text := ExtractFileName(MainDataModule.OpenPictureDlg.FileName);
   end;
 end;
 
@@ -369,23 +369,23 @@ end;
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
   Mixer := TMixer.Create(Self);
+  Tools := TTools.Create(Self);
+
   UserDocsDir := PathOutput.GetSpecialFolderPath(CSIDL_MYDOCUMENTS);
   Version := TJclFileVersionInfo.Create(MainInstance);
-  Caption := Version.ProductName + ' ' + Version.FileVersion;
-
-  OpenSettingsDialog.Filter := SSettingsFilter + '|' + OpenSettingsDialog.Filter;
-  SaveSettingsDialog.Filter := SSettingsFilter;
+  Caption := SAppTitle;
 
   LogFont := TFont.Create;
-  LogFont.Assign(LogView.Font);  
-  
+  LogFont.Assign(LogView.Font);
+
   LoadLastSettings(IniFile);
 end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
 begin
-  SaveCurrentSettings(IniFile);  
+  SaveCurrentSettings(IniFile);
   Mixer.Free;
+  Tools.Free;
   LogFont.Free;
   Version.Free;
 end;

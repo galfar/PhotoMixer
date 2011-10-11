@@ -19,6 +19,15 @@ type
     function Invoke: T;
   end;
 
+  TMessageType = (mtInfo, mtImportant, mtWarning, mtError);
+
+  IUIBridge = interface
+    procedure ShowMessage(MsgType: TMessageType; const MsgFmt: string; const Args: array of const);
+    procedure OnBegin;
+    procedure OnEnd(UserAbort: Boolean);
+    procedure OnProgress(Current, Total: Integer);
+  end;
+
   TNotifyRef = reference to procedure(Sender: TObject);
   // Hacky stuff to turn anonymous methods into TNotifyEvent
   // http://blog.barrkel.com/2010/01/using-anonymous-methods-in-method.html

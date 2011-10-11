@@ -1,14 +1,14 @@
-unit MixerUnit;
+unit Mixer;
 
 interface
 
 uses 
   Types,
   SysUtils,
-  Classes, 
+  Classes,
   DateUtils,
   Generics.Defaults,
-  Generics.Collections, 
+  Generics.Collections,
   IoUtils,
   ActiveX,
   ImagingUtility,
@@ -17,7 +17,7 @@ uses
 
 const
   FileTypeSeparator = ',';
-  NameFormat = ' %.4d-%.2d-%.2d %.2d-%.2d-%.2d.jpg';
+  NameFormat = '%.4d-%.2d-%.2d %.2d-%.2d-%.2d.jpg';
   
 type
   TSyncMode = (
@@ -45,15 +45,6 @@ type
     NamePattern: string;
     SyncSources: Boolean;
     RefSource: Integer;  
-  end;
-
-  TMessageType = (mtInfo, mtImportant, mtWarning, mtError);
-
-  IUIBridge = interface
-    procedure ShowMessage(MsgType: TMessageType; const MsgFmt: string; const Args: array of const);
-    procedure OnBegin;
-    procedure OnEnd(UserAbort: Boolean);
-    procedure OnProgress(Current, Total: Integer);
   end;
 
   IWorkerBridge = interface
@@ -348,7 +339,7 @@ begin
     DayDict.Add(DayId, DayFot);
   end;           
       
-  DestFile := Settings.OutputDir + Settings.NamePattern + Format(NameFormat, 
+  DestFile := Settings.OutputDir + Settings.NamePattern + ' ' + Format(NameFormat,
     [YearOf(DateTime), MonthOf(DateTime), DayOf(DateTime), HourOf(DateTime), MinuteOf(DateTime), DayFot]);
       
   if TFile.Exists(DestFile) and not DeleteFile(DestFile) then
@@ -356,7 +347,8 @@ begin
             
   try
     TFile.Move(FileName, DestFile);
-    TFile.SetLastWriteTime(DestFile, DateTime);                   
+    TFile.SetCreationTime(DestFile, DateTime);
+    TFile.SetLastWriteTime(DestFile, DateTime);
   except
     Bridge.ShowMessage(mtWarning, 'Failed to rename file "%s" to "%s". Opened in another process?', [FileName, DestFile]);  
   end;

@@ -22,12 +22,10 @@ type
 var
   AboutForm: TAboutForm;
 
-const 
-  SHomeSite = 'http://galfar.vevb.net/photomixer';
-
 implementation
 
-uses FormMain;
+uses
+  FormMain, PM.Consts;
 
 {$R *.dfm}
 
