@@ -250,6 +250,7 @@ object MainForm: TMainForm
         Top = 25
         Width = 453
         Height = 25
+        AllowKeyNav = True
         BtnGreyGrad1 = 15921906
         BtnGreyGrad2 = 14935011
         BtnNormGrad1 = 16643818
@@ -568,7 +569,7 @@ object MainForm: TMainForm
     Top = 448
     object ActLogCopy: TAction
       Category = 'Log'
-      Caption = 'Copy to clipboard'
+      Caption = 'Copy to Clipboard'
       OnExecute = ActLogCopyExecute
     end
     object ActAddSource: TAction
@@ -601,9 +602,10 @@ object MainForm: TMainForm
       Caption = 'Set Photo Date && Time'
       OnExecute = ActToolsSetDateTimeExecute
     end
-    object ActToolsFileDateFromMeta: TAction
+    object ActToolsFileFromMeta: TAction
       Category = 'Tools'
-      Caption = 'Set File Date From Photo Metadata'
+      Caption = 'Set File Time from Photo Metadata'
+      OnExecute = ActToolsFileFromMetaExecute
     end
   end
   object AppEvents: TApplicationEvents
@@ -651,7 +653,7 @@ object MainForm: TMainForm
       Action = ActToolsSetDateTime
     end
     object SetFileDateFromPhotoMetadata1: TMenuItem
-      Action = ActToolsFileDateFromMeta
+      Action = ActToolsFileFromMeta
     end
   end
   object PopupLog: TPopupMenu
@@ -664,10 +666,6 @@ object MainForm: TMainForm
       Action = ActLogClear
     end
   end
-  object OpenPictureDlg: TOpenPictureDialog
-    Left = 248
-    Top = 376
-  end
   object Images: TGFImageList
     ColorDepth = cd32Bit
     DrawingStyle = dsTransparent
@@ -675,7 +673,7 @@ object MainForm: TMainForm
     Left = 40
     Top = 456
     Bitmap = {
-      494C010105000800400010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010105000800480010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000002000000001002000000000000020
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000003030
@@ -949,15 +947,5 @@ object MainForm: TMainForm
   object ControlHint: TJvBalloonHint
     Left = 320
     Top = 376
-  end
-  object OpenSettingsDialog: TOpenDialog
-    Filter = 'All files (*.*)|*.*'
-    Left = 440
-    Top = 376
-  end
-  object SaveSettingsDialog: TSaveDialog
-    DefaultExt = 'pms'
-    Left = 440
-    Top = 432
   end
 end

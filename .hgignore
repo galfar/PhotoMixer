@@ -16,3 +16,4 @@ __history/*
 *.map
 *.local
 *.drc
+~$*.xls*
