@@ -245,9 +245,9 @@ begin
       Exif.Free;
     end;
   end;
-  
+
   if Result = 0 then
-    Result := TFile.GetLastWriteTime(FileName);  
+    Result := TFile.GetLastWriteTime(FileName);
 end;
 
 procedure TMixer.TMixWorker.PrepareReferenceTimes;
@@ -256,40 +256,58 @@ var
   RefDate, SrcDate: TDateTime;
   RefFile: string;
   FromExif: Boolean;
+
+  function IsRefPhotoNeeded: Boolean;
+  var
+    Src: TSource;
+  begin
+    Result := False;
+    for Src in Sources do
+    begin
+      if Src.SyncMode = smRefPhoto then
+        Exit(True);
+    end;
+  end;
+
 begin
-  Assert((Settings.RefSource >= 0) and (Settings.RefSource < Sources.Count));
-  RefSrc := Sources[Settings.RefSource];
-  RefFile := RefSrc.RefPhoto;
-  
-  RefDate := ReadPhotoDate(RefFile, FromExif);
-  Bridge.ShowMessage(mtInfo, 'Main reference time: %s (source: %s)', [DateTimeToStr(RefDate), 
-    Iff(FromExif, 'EXIF', 'file system')]);
+  RefSrc := nil;
+  RefDate := 0;
+
+  if IsRefPhotoNeeded then
+  begin
+    Assert((Settings.RefSource >= 0) and (Settings.RefSource < Sources.Count));
+    RefSrc := Sources[Settings.RefSource];
+    RefFile := RefSrc.RefPhoto;
+
+    RefDate := ReadPhotoDate(RefFile, FromExif);
+    Bridge.ShowMessage(mtInfo, 'Main reference time: %s (source: %s)', [DateTimeToStr(RefDate),
+      Iff(FromExif, 'EXIF', 'file system')]);
+  end;
 
   for Src in Sources do
   begin
-    if Src = RefSrc then
-    begin
-      Src.TimeShift := 0;
-    end
-    else 
-    begin
-      case Src.SyncMode of
-        smRefPhoto: 
+    case Src.SyncMode of
+      smRefPhoto:
+        begin
+          Assert(RefSrc <> nil);
+          Assert(RefDate <> 0);
+
+          if Src = RefSrc then
           begin
-            SrcDate := ReadPhotoDate(Src.RefPhoto, FromExif);
-            Src.TimeShift := SecondsBetween(RefDate, SrcDate);
-            if SrcDate > RefDate then
-              Src.TimeShift := -Src.TimeShift;
+            Src.TimeShift := 0;
+            Continue;
           end;
-        smExplicitShift: 
-          begin
-            Src.TimeShift := Src.ExplicitShift;
-          end;
-      else
-        Assert(False);
-      end;            
+          SrcDate := ReadPhotoDate(Src.RefPhoto, FromExif);
+          Src.TimeShift := SecondsBetween(RefDate, SrcDate);
+          if SrcDate > RefDate then
+            Src.TimeShift := -Src.TimeShift;
+        end;
+      smExplicitShift:
+        begin
+          Src.TimeShift := Src.ExplicitShift;
+        end;
     end;
-    Bridge.ShowMessage(mtInfo, 'Source "%s" has time shift of %s seconds', [Src.Name, 
+    Bridge.ShowMessage(mtInfo, 'Source "%s" has time shift of %s seconds', [Src.Name,
       IntToStrFmt(Src.TimeShift)]);
   end;
 end;

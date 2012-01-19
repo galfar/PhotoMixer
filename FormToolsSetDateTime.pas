@@ -5,7 +5,7 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.StdCtrls, System.DateUtils,
-  rkSmartPath, Tools, Vcl.ExtCtrls;
+  rkSmartPath, Tools, Vcl.ExtCtrls, Helpers;
 
 type
   TToolsSetDateTimeForm = class(TForm)
@@ -23,6 +23,7 @@ type
     Bevel1: TBevel;
     procedure Button1Click(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure BtnBrowseOutputDirClick(Sender: TObject);
   private
 
   public
@@ -55,6 +56,11 @@ begin
     SetDateTime.IncrementalTimes := CheckIncTimes.Checked;
     SetDateTime.SkipWithMeta := CheckSkipWithMeta.Checked;
   end;
+end;
+
+procedure TToolsSetDateTimeForm.BtnBrowseOutputDirClick(Sender: TObject);
+begin
+  BrowseForDir('Select photo folder', PathPhotos, True);
 end;
 
 procedure TToolsSetDateTimeForm.Button1Click(Sender: TObject);

@@ -386,7 +386,11 @@ procedure TrkSmartPath.ExitEditMode;
 begin
   if not InEdit then
     Exit;
-  FPathEdit.Free;
+
+  //FPathEdit.Free; // when called from EditkeyPress stack corruption happens!
+  FPathEdit.Hide;
+  FPathEdit := nil;
+
   if FHotPos = -2 then
     Color := FColorExit
   else

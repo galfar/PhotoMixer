@@ -373,6 +373,7 @@ begin
 
   UserDocsDir := PathOutput.GetSpecialFolderPath(CSIDL_MYDOCUMENTS);
   Version := TJclFileVersionInfo.Create(MainInstance);
+
   Caption := SAppTitle;
 
   LogFont := TFont.Create;
@@ -483,11 +484,12 @@ var
   Src: TSource;     
   SrcPath: string;    
 begin
+  Ini.WriteInteger(SSettingsOptionsPath + 'Version', CurrentSettingsVersion);
   Ini.WriteString(SSettingsOptionsPath + 'OutDir', Mixer.Settings.OutputDir);
   Ini.WriteString(SSettingsOptionsPath + 'NamePattern', Mixer.Settings.NamePattern);
   Ini.WriteString(SSettingsOptionsPath + 'FileTypes', Mixer.Settings.FileTypes);
   Ini.WriteBoolean(SSettingsOptionsPath + 'SyncSources', Mixer.Settings.SyncSources);
-  Ini.WriteInteger(SSettingsOptionsPath + 'RefSource', Mixer.Settings.RefSource);    
+  Ini.WriteInteger(SSettingsOptionsPath + 'RefSource', Mixer.Settings.RefSource);
                          
   Ini.WriteInteger(SSettingsSourcesPath + 'Count', Mixer.SourceCount);
   for I := 0 to Mixer.SourceCount - 1 do

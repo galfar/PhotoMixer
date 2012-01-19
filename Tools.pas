@@ -72,6 +72,7 @@ var
 begin
   FileList := TDirectory.GetFiles(Dir);
   Counter := 0;
+  FUI.ShowMessage(TMessageType.mtImportant, 'Starting Set File Time From Metadata tool...', []);
 
   for S in FileList do
   begin
@@ -82,9 +83,9 @@ begin
     try
       Exif.OpenFile(S);
 
-      if not Exif.Empty and (Exif.DateTime <> 0) then
+      if not Exif.Empty and (Exif.DateTimeOriginal <> 0) then
       begin
-        DateTime := Exif.DateTime;
+        DateTime := Exif.DateTimeOriginal;
         Exif.CloseFile(False);
         TFile.SetCreationTime(S, DateTime);
         TFile.SetLastWriteTime(S, DateTime);
@@ -96,7 +97,7 @@ begin
     end;
   end;
 
-  FUI.ShowMessage(TMessageType.mtImportant, 'Processed %d files in %s folder', [Counter, Dir]);
+  FUI.ShowMessage(TMessageType.mtInfo, 'Processed %d files in "%s" folder', [Counter, Dir]);
 end;
 
 procedure TTools.SetPhotoDateTime;
@@ -109,6 +110,8 @@ var
 begin
   DateTime := Settings.SetDateTime.Date + Settings.SetDateTime.Time;
   FileList := TDirectory.GetFiles(Settings.SetDateTime.TargetDir);
+  Counter := 0;
+  FUI.ShowMessage(TMessageType.mtImportant, 'Starting Set Photo Date & Time tool...', []);
 
   for S in FileList do
   begin
@@ -136,7 +139,7 @@ begin
     end;
   end;
 
-  FUI.ShowMessage(TMessageType.mtImportant, 'Processed %d files in %s folder', [Counter, Settings.SetDateTime.TargetDir]);
+  FUI.ShowMessage(TMessageType.mtInfo, 'Processed %d files in "%s" folder', [Counter, Settings.SetDateTime.TargetDir]);
 end;
 
 procedure TTools.ClearDirectory(const Dir: string);
