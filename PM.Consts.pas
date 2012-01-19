@@ -8,13 +8,16 @@ uses
 const
   SAppTitle = 'PhotoMixer';
   STabSettingsName = 'Settings';
-  SDefaultFileTypes = 'jpg, jpeg, avi, mov, png';
+  SDefaultFileTypes = 'jpg, jpeg, png';
   SAppDataDir = 'PhotoMixer';
   SSettingsFile = 'Settings.ini';
   SSettingsSourcesPath = 'Sources' + PathDelim;
   SSettingsOptionsPath = 'Options' + PathDelim;
   SSettingsFilter = 'PhotoMixer settings (*.pms)|*.pms';
   SHomeSite = 'http://galfar.vevb.net/photomixer';
+  SCopyrightStatement = 'Copyright 2011 Marek Mauder';
+
+  CurrentSettingsVersion = 1;
 
 implementation
 

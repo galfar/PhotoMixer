@@ -108,12 +108,11 @@ object ToolsSetDateTimeForm: TToolsSetDateTimeForm
     ColorExit = clWindow
     ComputerAsDefault = True
     DirMustExist = False
-    EmptyPathIcon = 12
+    EmptyPathIcon = 15
     EmptyPathText = 'Computer'
     NewFolderName = 'New Folder'
     ParentColor = False
     ParentBackground = False
-    Path = 'd:\projects\raging\p35\'
     SpecialFolders = [spDesktop, spDocuments, spPictures]
     TabOrder = 4
   end
@@ -124,6 +123,7 @@ object ToolsSetDateTimeForm: TToolsSetDateTimeForm
     Height = 25
     Caption = 'Browse...'
     TabOrder = 5
+    OnClick = BtnBrowseOutputDirClick
   end
   object Button1: TButton
     Left = 328

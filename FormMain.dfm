@@ -346,10 +346,12 @@ object MainForm: TMainForm
         ShowCaption = False
         TabOrder = 6
         object LabRefSource: TLabel
-          Left = 48
+          Left = 22
           Top = 14
-          Width = 120
+          Width = 146
           Height = 15
+          Alignment = taRightJustify
+          AutoSize = False
           Caption = 'Time reference source:'
           WordWrap = True
         end
@@ -507,10 +509,11 @@ object MainForm: TMainForm
           ShowCaption = False
           TabOrder = 2
           object Label5: TLabel
-            Left = 8
-            Top = 9
-            Width = 90
+            Left = 0
+            Top = 10
+            Width = 98
             Height = 15
+            AutoSize = False
             Caption = 'Reference photo:'
             WordWrap = True
           end
@@ -543,10 +546,11 @@ object MainForm: TMainForm
           ShowCaption = False
           TabOrder = 3
           object Label2: TLabel
-            Left = 8
+            Left = 0
             Top = 6
-            Width = 86
+            Width = 98
             Height = 15
+            AutoSize = False
             Caption = 'Shift in seconds:'
           end
           object EditSrcSyncShift: TJvSpinEdit
@@ -673,7 +677,7 @@ object MainForm: TMainForm
     Left = 40
     Top = 456
     Bitmap = {
-      494C010105000800480010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C010105000800540010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000002000000001002000000000000020
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000003030
