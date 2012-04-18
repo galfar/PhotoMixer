@@ -13,7 +13,7 @@ uses
   JvBalloonHint, GFImageList, Helpers, Tools, Mixer, JvExMask;
 
 type
-  TMainForm = class(TForm, IUIBridge)
+  TMainForm = class(TForm, IUIBridge, IIdleHandler)
     PanelTop: TrkVistaPanel;
     TabsMain: TrkSmartTabs;
     PageList: TJvPageList;
@@ -32,7 +32,6 @@ type
     BtnBrowseOutputDir: TButton;
     Actions: TActionList;
     ActAddSource: TAction;
-    AppEvents: TApplicationEvents;
     Label6: TLabel;
     EditFileTypes: TEdit;
     CheckSyncSources: TCheckBox;
@@ -76,6 +75,8 @@ type
     SetPhotoDateTime1: TMenuItem;
     ActToolsFileFromMeta: TAction;
     SetFileDateFromPhotoMetadata1: TMenuItem;
+    ActToolsAutoOrient: TAction;
+    AutoOrientAccordingtoMetadata1: TMenuItem;
     procedure TabsMainCloseTab(Sender: TObject; Index: Integer;
       var Close: Boolean);
     procedure TabsMainTabChange(Sender: TObject);
@@ -87,7 +88,6 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure ActAddSourceExecute(Sender: TObject);
     procedure BtnProcessClick(Sender: TObject);
-    procedure AppEventsIdle(Sender: TObject; var Done: Boolean);
     procedure IniFileGetFileName(Sender: TJvCustomAppStorage;
       var FileName: TFileName);
     procedure CheckSyncSourcesClick(Sender: TObject);
@@ -110,6 +110,7 @@ type
     procedure ActToolsLoadSettingsExecute(Sender: TObject);
     procedure ActToolsSetDateTimeExecute(Sender: TObject);
     procedure ActToolsFileFromMetaExecute(Sender: TObject);
+    procedure ActToolsAutoOrientExecute(Sender: TObject);
   private
     Mixer: TMixer;
     Tools: TTools;
@@ -118,9 +119,12 @@ type
     LogFont: TFont;    
 
     procedure SelectSource(Index: Integer);
-    procedure LoadLastSettings(Ini: TJvAppIniFileStorage);
-    procedure SaveCurrentSettings(Ini: TJvAppIniFileStorage);
+    procedure LoadMixerSettings(Ini: TJvAppIniFileStorage);
+    procedure SaveMixerSettings(Ini: TJvAppIniFileStorage);
+    procedure LoadToolsSettings(Ini: TJvAppIniFileStorage);
+    procedure SaveToolsSettings(Ini: TJvAppIniFileStorage);
     procedure PopulateUI;
+    procedure SetDefaultSettings;
 
     function GenSourceName: string;
     function GetSourceIndex: Integer;
@@ -136,6 +140,9 @@ type
     procedure OnBegin;
     procedure OnEnd(UserAbort: Boolean);
     procedure OnProgress(Current, Total: Integer);
+
+    // IIdleHandler methods
+    procedure DoIdle;
   public
     Version: TJclFileVersionInfo;
   end;
@@ -146,13 +153,13 @@ var
 implementation
 
 uses
-  FormToolsSetDateTime, DataModule, PM.Consts;
+  FormToolsSetDateTime, DataModule, PM.Consts, UITools;
 
 {$R *.dfm}
 
 function TMainForm.GenSourceName: string;
 begin
-  Result := 'Source ' + IntToStr(Mixer.SourceCount);
+  Result := SSource + ' ' + IntToStr(Mixer.SourceCount);
 end;
 
 function TMainForm.GetSourceIndex: Integer;
@@ -169,7 +176,8 @@ begin
   Src.Name := GenSourceName;
   Src.PhotoDir := UserDocsDir;
   ComboRefSource.Items.Add(Src.Name);
-  TabsMain.AddTab(Src.Name);           
+  TabsMain.AddTab(Src.Name);
+  EditSourceName.SetFocus;
 end;
 
 procedure TMainForm.ActLogClearExecute(Sender: TObject);
@@ -181,6 +189,12 @@ procedure TMainForm.ActLogCopyExecute(Sender: TObject);
 begin
   LogView.SelectAll;
   LogView.CopyToClipboard;  
+end;
+
+procedure TMainForm.ActToolsAutoOrientExecute(Sender: TObject);
+begin
+  if SelectPhotoFolders(ActToolsAutoOrient.Caption, Tools.Settings.InputOutputDirs) then
+    Tools.AutoOrientByMeta;
 end;
 
 procedure TMainForm.ActToolsClearOutDirExecute(Sender: TObject);
@@ -200,11 +214,9 @@ begin
 end;
 
 procedure TMainForm.ActToolsFileFromMetaExecute(Sender: TObject);
-var
-  Dir: string;
 begin
-  if SelectDir('Select photo folder', Dir, False, Self) then
-    Tools.SetFileTimeFromMeta(Dir);
+  if SelectPhotoFolders(ActToolsFileFromMeta.Caption, Tools.Settings.InputOutputDirs) then
+    Tools.SetFileTimeFromMeta;
 end;
 
 procedure TMainForm.ActToolsLoadSettingsExecute(Sender: TObject);
@@ -219,7 +231,7 @@ begin
       Ini.Location := flCustom;
       Ini.FileName := MainDataModule.OpenSettingsDialog.FileName;
 
-      LoadLastSettings(Ini);      
+      LoadMixerSettings(Ini);
     finally
       Ini.Free;
     end;    
@@ -238,7 +250,7 @@ begin
       Ini.Location := flCustom;
       Ini.FileName := MainDataModule.SaveSettingsDialog.FileName;
 
-      SaveCurrentSettings(Ini);      
+      SaveMixerSettings(Ini);
     finally
       Ini.Free;
     end;
@@ -247,15 +259,14 @@ end;
 
 procedure TMainForm.ActToolsSetDateTimeExecute(Sender: TObject);
 begin
-  ToolsSetDateTimeForm.ApplySettings(Tools.Settings);
-  if ToolsSetDateTimeForm.ShowModal = mrOk then
+  if UITools.ShowSetPhotoDateTimeDialog(Tools.Settings.InputOutputDirs,
+    Tools.Settings.SetDateTime) then
   begin
-    ToolsSetDateTimeForm.UpdateSettings(Tools.Settings);
     Tools.SetPhotoDateTime;
   end;
 end;
 
-procedure TMainForm.AppEventsIdle(Sender: TObject; var Done: Boolean);
+procedure TMainForm.DoIdle;
 begin
   if not Mixer.Running then
   begin
@@ -264,27 +275,26 @@ begin
     if not PathOutput.Enabled then
       SetWinControlState(PageSettings, True);
   end
-  else  
+  else
   begin
     BtnProcess.Caption := 'Stop!';
-    BtnProcess.ImageIndex := 1;    
+    BtnProcess.ImageIndex := 1;
   end;
 
   TabsMain.Enabled := not Mixer.Running;
   BtnAddSource.Enabled := not Mixer.Running;
   BtnTools.Enabled := not Mixer.Running;
- 
+
   LabRefSource.Visible := Mixer.Settings.SyncSources;
   ComboRefSource.Visible := Mixer.Settings.SyncSources;
   PanelRefSource.Visible := Mixer.Settings.SyncSources;
-  PanelSrcSync.Visible := Mixer.Settings.SyncSources; 
+  PanelSrcSync.Visible := Mixer.Settings.SyncSources;
+
   if TabsMain.ActiveTab > 0 then
   begin
     PanelSyncRef.Visible := Mixer.Source[TabsMain.ActiveTab - 1].SyncMode = smRefPhoto;
     PanelSyncShift.Visible := Mixer.Source[TabsMain.ActiveTab - 1].SyncMode = smExplicitShift;
   end;
-    
-  Done := True;
 end;
 
 procedure TMainForm.BtnAboutClick(Sender: TObject);
@@ -294,12 +304,12 @@ end;
 
 procedure TMainForm.BtnBrowseOutputDirClick(Sender: TObject);
 begin
-  BrowseForDir('Select output photo folder', PathOutput, True);
+  BrowseForDir(SSelectOutputPhotoFolder, PathOutput, True);
 end;
 
 procedure TMainForm.BtnBrowseSourceDirClick(Sender: TObject);
 begin
-  BrowseForDir('Select source photo folder', PathSourceDir, False);
+  BrowseForDir(SSelectSourcePhotoFolder, PathSourceDir, False);
 end;
 
 procedure TMainForm.BtnProcessClick(Sender: TObject);
@@ -379,12 +389,17 @@ begin
   LogFont := TFont.Create;
   LogFont.Assign(LogView.Font);
 
-  LoadLastSettings(IniFile);
+  LoadMixerSettings(IniFile);
+  LoadToolsSettings(IniFile);
+
+  MainDataModule.RegisterIdleHandler(Self);
 end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
 begin
-  SaveCurrentSettings(IniFile);
+  SaveMixerSettings(IniFile);
+  SaveToolsSettings(IniFile);
+
   Mixer.Free;
   Tools.Free;
   LogFont.Free;
@@ -447,7 +462,20 @@ begin
   Mixer.Source[GetSourceIndex].SyncMode := smExplicitShift;
 end;
 
-procedure TMainForm.LoadLastSettings(Ini: TJvAppIniFileStorage);
+procedure TMainForm.SetDefaultSettings;
+begin
+  Tools.Settings.InputOutputDirs.InDir := UserDocsDir;
+  Tools.Settings.InputOutputDirs.OutDir := UserDocsDir + PathDelim + SOutput;
+  Tools.Settings.InputOutputDirs.ModifyExisting := True;
+
+  Tools.Settings.SetDateTime.Date := Now;
+  Tools.Settings.SetDateTime.Time := Now;
+  Tools.Settings.SetDateTime.TimeInc := EncodeTime(0, 1, 0, 0);
+  Tools.Settings.SetDateTime.IncrementalTimes := False;
+  Tools.Settings.SetDateTime.SkipWithMeta := True;
+end;
+
+procedure TMainForm.LoadMixerSettings(Ini: TJvAppIniFileStorage);
 var
   Count, I: Integer;
   Src: TSource; 
@@ -455,12 +483,12 @@ var
 begin
   Ini.Reload;
   Mixer.Reset;
-         
+
   Mixer.Settings.OutputDir := Ini.ReadString(SSettingsOptionsPath + 'OutDir', UserDocsDir);
   Mixer.Settings.NamePattern := Ini.ReadString(SSettingsOptionsPath + 'NamePattern', 'My Album');
   Mixer.Settings.FileTypes := Ini.ReadString(SSettingsOptionsPath + 'FileTypes', SDefaultFileTypes);
   Mixer.Settings.SyncSources := Ini.ReadBoolean(SSettingsOptionsPath + 'SyncSources', True);
-  Mixer.Settings.RefSource := Ini.ReadInteger(SSettingsOptionsPath + 'RefSource', -1);        
+  Mixer.Settings.RefSource := Ini.ReadInteger(SSettingsOptionsPath + 'RefSource', -1);
 
   Count := Ini.ReadInteger(SSettingsSourcesPath + 'Count', 0);          
   for I := 0 to Count - 1 do
@@ -469,16 +497,31 @@ begin
     SrcPath := Format(SSettingsSourcesPath + 'Source%2.2d.', [I]);
     Src.Name := Ini.ReadString(SrcPath + 'Name', 'Source ' + IntToStr(I + 1));
     Src.PhotoDir := Ini.ReadString(SrcPath + 'PhotoDir', UserDocsDir);                
-    Src.RefPhoto := Ini.ReadString(SrcPath + 'RefPhoto', '');            
+    Src.RefPhoto := Ini.ReadString(SrcPath + 'RefPhoto', '');
     Ini.ReadEnumeration(SrcPath + 'SyncMode', TypeInfo(TSyncMode), Src.SyncMode, Src.SyncMode);                
     Src.RefPhoto := Ini.ReadString(SrcPath + 'RefPhoto', '');        
-    Src.ExplicitShift := Ini.ReadInteger(SrcPath + 'ExplicitShift', 0);           
+    Src.ExplicitShift := Ini.ReadInteger(SrcPath + 'ExplicitShift', 0);
   end;  
 
   PopulateUI;
 end;
 
-procedure TMainForm.SaveCurrentSettings(Ini: TJvAppIniFileStorage);
+procedure TMainForm.LoadToolsSettings(Ini: TJvAppIniFileStorage);
+begin
+  Ini.Reload;
+
+  Tools.Settings.InputOutputDirs.InDir := Ini.ReadString(SSettingsToolsPath + 'InDir', UserDocsDir);
+  Tools.Settings.InputOutputDirs.OutDir := Ini.ReadString(SSettingsToolsPath + 'OutDir', UserDocsDir + PathDelim + SOutput);
+  Tools.Settings.InputOutputDirs.ModifyExisting := Ini.ReadBoolean(SSettingsToolsPath + 'ModifyExisting', True);
+
+  Tools.Settings.SetDateTime.Date := DateOf(Ini.ReadDateTime(SSettingsToolsPath + 'SetDateTime' + PathDelim + 'DateTime', Now));
+  Tools.Settings.SetDateTime.Time := TimeOf(Ini.ReadDateTime(SSettingsToolsPath + 'SetDateTime' + PathDelim + 'DateTime', Now));
+  Tools.Settings.SetDateTime.TimeInc := TimeOf(Ini.ReadDateTime(SSettingsToolsPath + 'SetDateTime' + PathDelim + 'TimeInc', EncodeTime(0, 1, 0, 0)));
+  Tools.Settings.SetDateTime.IncrementalTimes := Ini.ReadBoolean(SSettingsToolsPath + 'SetDateTime' + PathDelim + 'IncrementalTimes', False);
+  Tools.Settings.SetDateTime.SkipWithMeta := Ini.ReadBoolean(SSettingsToolsPath + 'SetDateTime' + PathDelim + 'SkipWithMeta', True);
+end;
+
+procedure TMainForm.SaveMixerSettings(Ini: TJvAppIniFileStorage);
 var
   I: Integer;
   Src: TSource;     
@@ -503,6 +546,23 @@ begin
     Ini.WriteInteger(SrcPath + 'ExplicitShift', Src.ExplicitShift);        
   end;
   
+  Ini.Flush;
+end;
+
+procedure TMainForm.SaveToolsSettings(Ini: TJvAppIniFileStorage);
+var
+  DateTime: TDateTime;
+begin
+  Ini.WriteString(SSettingsToolsPath + 'InDir', Tools.Settings.InputOutputDirs.InDir);
+  Ini.WriteString(SSettingsToolsPath + 'OutDir', Tools.Settings.InputOutputDirs.OutDir);
+  Ini.WriteBoolean(SSettingsToolsPath + 'ModifyExisting', Tools.Settings.InputOutputDirs.ModifyExisting);
+
+  DateTime := DateOf(Tools.Settings.SetDateTime.Date) + TimeOf(Tools.Settings.SetDateTime.Time);
+  Ini.WriteDateTime(SSettingsToolsPath + 'SetDateTime' + PathDelim + 'DateTime', DateTime);
+  Ini.WriteDateTime(SSettingsToolsPath + 'SetDateTime' + PathDelim + 'TimeInc', Tools.Settings.SetDateTime.TimeInc);
+  Ini.WriteBoolean(SSettingsToolsPath + 'SetDateTime' + PathDelim + 'IncrementalTimes', Tools.Settings.SetDateTime.IncrementalTimes);
+  Ini.WriteBoolean(SSettingsToolsPath + 'SetDateTime' + PathDelim + 'SkipWithMeta', Tools.Settings.SetDateTime.SkipWithMeta);
+
   Ini.Flush;
 end;
 
@@ -644,14 +704,18 @@ var
   Proc: TThreadProcedure;   
 begin     
   Msg := Format(MsgFmt, Args) + SLineBreak;   
-  Proc := 
+
+  Proc :=
     procedure     
     begin           
       LogFont.Color := clWindowText;
       LogFont.Style := [];
   
       case MsgType of
-        mtImportant: LogFont.Style := [fsBold];
+        mtImportant:
+          begin
+            LogFont.Style := [fsBold];
+          end;
         mtWarning:   
           begin
             LogFont.Color := clOlive;
@@ -662,10 +726,14 @@ begin
             LogFont.Style := [fsBold];
             LogFont.Color := clRed;
             Msg := 'Fatal Error: ' + Msg;
-          end;             
+          end;
       end;
+
       LogView.AddFormatText(Msg, LogFont);
-    end;  
+      LogView.SelStart := LogView.GetTextLen;
+      LogView.SelLength := 0;
+      LogView.Perform(EM_SCROLLCARET, 0, 0);
+    end;
 
   if (TThread.CurrentThread.ThreadID <> MainThreadID) then
     TThread.Synchronize(TThread.CurrentThread, Proc)

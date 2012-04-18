@@ -37,16 +37,17 @@
 			<Base>true</Base>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Base)'!=''">
+			<VerInfo_Release>1</VerInfo_Release>
 			<VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
 			<DCC_ExeOutput>Build\$(Platform)\$(Config)</DCC_ExeOutput>
 			<DCC_DcuOutput>Build\$(Platform)\$(Config)</DCC_DcuOutput>
 			<Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
 			<Icon_MainIcon>$(BDS)\bin\delphi_PROJECTICON.ico</Icon_MainIcon>
-			<VerInfo_Build>24</VerInfo_Build>
+			<VerInfo_Build>28</VerInfo_Build>
 			<DCC_Namespace>Vcl;Vcl.Imaging;Vcl.Touch;Vcl.Samples;Vcl.Shell;System;Xml;Data;Datasnap;Web;Soap;Winapi;$(DCC_Namespace)</DCC_Namespace>
 			<VerInfo_MajorVer>0</VerInfo_MajorVer>
 			<VerInfo_MinorVer>8</VerInfo_MinorVer>
-			<VerInfo_Keys>LegalTrademarks=;OriginalFilename=;ProductName=PhotoMixer;Comments=;FileVersion=0.8.0.24;ProductVersion=0.8.0.24;Last Compile=2011-12-04 21:59</VerInfo_Keys>
+			<VerInfo_Keys>LegalTrademarks=;OriginalFilename=;ProductName=PhotoMixer;Comments=;FileVersion=0.8.1.28;ProductVersion=0.8.1.28;Last Compile=2012-04-18 07:59</VerInfo_Keys>
 			<VerInfo_Locale>1033</VerInfo_Locale>
 			<DCC_UsePackage>rtl;vcl;vclx;vclactnband;xmlrtl;vclimg;dbrtl;vcldb;vcldbx;bdertl;vcltouch;dsnap;dsnapcon;TeeUI;TeeDB;Tee;adortl;IndyCore;IndySystem;IndyProtocols;inet;intrawebdb_100_140;Intraweb_100_140;VclSmp;vclie;websnap;webdsnap;inetdb;inetdbbde;inetdbxpress;soaprtl;vclribbon;dbexpress;DbxCommonDriver;DataSnapIndy10ServerTransport;DataSnapProviderClient;DbxClientDriver;DataSnapServer;DBXInterBaseDriver;DBXMySQLDriver;dbxcds;DBXFirebirdDriver;DBXSybaseASEDriver;DBXSybaseASADriver;DBXOracleDriver;DBXMSSQLDriver;DBXInformixDriver;DBXDb2Driver;VampyreImagingPackage.D2009;VirtualTreesD13;DSLayout14;EasyListviewD13;RaizeComponentsVcl;RaizeComponentsVclDb;OmniThreadLibraryRuntime2010;GR32_DSGN_RS2010;GR32_RS2010;GLScene_RunTime;JclDeveloperTools;Jcl;JclVcl;JclContainers;JvCore;JvSystem;JvStdCtrls;JvAppFrm;JvBands;JvDB;JvDlgs;JvBDE;JvControls;JvCmp;JvCrypt;JvCustom;JvDocking;JvDotNetCtrls;JvGlobus;JvHMI;JvJans;JvManagedThreads;JvMM;JvNet;JvPageComps;JvPascalInterpreter;JvPluginSystem;JvPrintPreview;JvRuntimeDesign;JvTimeFramework;JvWizards;JvXPCtrls;$(DCC_UsePackage)</DCC_UsePackage>
 			<DCC_StringChecks>off</DCC_StringChecks>
@@ -82,7 +83,9 @@
 			<DCC_RemoteDebug>true</DCC_RemoteDebug>
 		</PropertyGroup>
 		<PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
-			<Icon_MainIcon>$(BDS)\bin\delphi_PROJECTICON.ico</Icon_MainIcon>
+			<VerInfo_Build>28</VerInfo_Build>
+			<VerInfo_Keys>LegalTrademarks=;OriginalFilename=;ProductName=PhotoMixer;Comments=;FileVersion=0.8.1.28;ProductVersion=0.8.1.28;Last Compile=2012-04-18 07:59</VerInfo_Keys>
+			<VerInfo_Release>1</VerInfo_Release>
 			<Debugger_CWD>Deploy</Debugger_CWD>
 		</PropertyGroup>
 		<ItemGroup>
@@ -98,13 +101,26 @@
 			<DCCReference Include="FormAbout.pas">
 				<Form>AboutForm</Form>
 			</DCCReference>
-			<DCCReference Include="FormToolsSetDateTime.pas">
-				<Form>ToolsSetDateTimeForm</Form>
-			</DCCReference>
 			<DCCReference Include="Tools.pas"/>
 			<DCCReference Include="DataModule.pas">
 				<Form>MainDataModule</Form>
 				<DesignClass>TDataModule</DesignClass>
+			</DCCReference>
+			<DCCReference Include="FrameSelectFolders.pas">
+				<Form>SelectFoldersFrame</Form>
+				<FormType>dfm</FormType>
+				<DesignClass>TFrame</DesignClass>
+			</DCCReference>
+			<DCCReference Include="FrameDialogControls.pas">
+				<Form>DialogControlsFrame</Form>
+				<FormType>dfm</FormType>
+				<DesignClass>TFrame</DesignClass>
+			</DCCReference>
+			<DCCReference Include="UITools.pas"/>
+			<DCCReference Include="FrameSetDateTime.pas">
+				<Form>SetDateTimeFrame</Form>
+				<FormType>dfm</FormType>
+				<DesignClass>TFrame</DesignClass>
 			</DCCReference>
 			<BuildConfiguration Include="Debug">
 				<Key>Cfg_2</Key>
@@ -135,7 +151,7 @@
 						<VersionInfo Name="MajorVer">0</VersionInfo>
 						<VersionInfo Name="MinorVer">8</VersionInfo>
 						<VersionInfo Name="Release">0</VersionInfo>
-						<VersionInfo Name="Build">26</VersionInfo>
+						<VersionInfo Name="Build">28</VersionInfo>
 						<VersionInfo Name="Debug">False</VersionInfo>
 						<VersionInfo Name="PreRelease">False</VersionInfo>
 						<VersionInfo Name="Special">False</VersionInfo>
@@ -147,7 +163,7 @@
 					<VersionInfoKeys>
 						<VersionInfoKeys Name="CompanyName"/>
 						<VersionInfoKeys Name="FileDescription"/>
-						<VersionInfoKeys Name="FileVersion">0.8.0.26</VersionInfoKeys>
+						<VersionInfoKeys Name="FileVersion">0.8.0.28</VersionInfoKeys>
 						<VersionInfoKeys Name="InternalName"/>
 						<VersionInfoKeys Name="LegalCopyright"/>
 						<VersionInfoKeys Name="LegalTrademarks"/>

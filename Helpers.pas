@@ -3,8 +3,8 @@ unit Helpers;
 interface
 
 uses
-  Types, Classes, SysUtils, Windows, Controls, Forms, FileCtrl, rkSmartPath, 
-  ImagingUtility, JvBalloonHint, Generics.Collections;
+  Types, Classes, SysUtils, Windows, Controls, Forms, FileCtrl, rkSmartPath,
+  ImagingUtility, JvBalloonHint, Generics.Collections, Vcl.Dialogs, Vcl.Graphics;
 
 type
   TDictionaryIntInt = TDictionary<Integer, Integer>;
@@ -28,6 +28,20 @@ type
     procedure OnProgress(Current, Total: Integer);
   end;
 
+  IIdleHandler = interface
+    procedure DoIdle;
+  end;
+
+  IIdleManager = interface
+    procedure RegisterIdleHandler(Handler: IIdleHandler);
+    procedure UnRegister(Handler: IIdleHandler);
+  end;
+
+  TDialogFrame = class(TFrame)
+  public
+    procedure PlaceOnForm(Form: TForm; X, Y: Integer); virtual;
+  end;
+
   TNotifyRef = reference to procedure(Sender: TObject);
   // Hacky stuff to turn anonymous methods into TNotifyEvent
   // http://blog.barrkel.com/2010/01/using-anonymous-methods-in-method.html
@@ -43,11 +57,21 @@ function CopyFile(const SourceFileName, DestFileName: string;
   const Overwrite: Boolean): Boolean;
 function IsJpeg(const FileName: string): Boolean;  
 procedure SetWinControlState(Control: TWinControl; Enabled: Boolean; ControlKeptEnabled: TControl = nil);
+function CreateDialogForm(const Caption: string): TForm;
 
 type
   TIconKind = TJvIconKind;
   
 implementation
+
+{ TDialogFrame }
+
+procedure TDialogFrame.PlaceOnForm(Form: TForm; X, Y: Integer);
+begin
+  Left := X;
+  Top := Y;
+  Parent := Form;
+end;
 
 constructor TSmartPointer<T>.Create(AValue: T);
 begin
@@ -82,13 +106,46 @@ end;
 
 function SelectDir(const Caption: string; var Dir: string; AllowCreateDir: Boolean;
   Parent: TWinControl; AdditionalOptions: TSelectDirExtOpts): Boolean;
-var
-  Options: TSelectDirExtOpts;
+
+  function SelectDirNew: Boolean;
+  var
+    Dlg: TFileOpenDialog;
+  begin
+    Result := False;
+    Dlg := TFileOpenDialog.Create(nil);
+    try
+      Dlg.Title := Caption;
+      Dlg.Options := [fdoPickFolders, fdoPathMustExist,
+        fdoForceFileSystem, fdoShareAware];
+      Dlg.OkButtonLabel := 'Select';
+      Dlg.DefaultFolder := Dir;
+      Dlg.FileName := Dir;
+
+      if Dlg.Execute then
+      begin
+        Dir := Dlg.FileName;
+        Exit(True);
+      end;
+    finally
+      Dlg.Free;
+    end
+  end;
+
+  function SelectDirOld: Boolean;
+  var
+    Options: TSelectDirExtOpts;
+  begin
+    Options := [sdNewUI, sdShowShares] + AdditionalOptions;
+    if AllowCreateDir then
+      Options := Options + [sdNewFolder, sdValidateDir];
+    Result := FileCtrl.SelectDirectory(Caption, '', Dir, Options, Parent);
+  end;
+
 begin
-  Options := [sdNewUI, sdShowShares] + AdditionalOptions;
-  if AllowCreateDir then
-    Options := Options + [sdNewFolder, sdValidateDir];
-  Result := FileCtrl.SelectDirectory(Caption, '', Dir, Options, Parent);
+  if Win32MajorVersion >= 6 then
+    Result := SelectDirNew
+  else
+    Result := SelectDirOld;
 end;
 
 procedure BrowseForDir(const Prompt: string; PathCtrl: TrkSmartPath; AllowCreateDir: Boolean);  
@@ -149,6 +206,17 @@ begin
       Control.Controls[I].Enabled := Enabled;
     end;
   end;
+end;
+
+function CreateDialogForm(const Caption: string): TForm;
+begin
+  Result := TForm.CreateNew(nil);
+  Result.Caption := Caption;
+  Result.Position := TPosition.poMainFormCenter;
+  Result.BorderIcons := [biSystemMenu];
+  Result.BorderStyle := bsSingle;
+  Result.Color := clWindow;
+  Result.AutoSize := True;
 end;
 
 end.
