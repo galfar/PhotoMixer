@@ -608,14 +608,14 @@ object MainForm: TMainForm
     end
     object ActToolsFileFromMeta: TAction
       Category = 'Tools'
-      Caption = 'Set File Time from Photo Metadata'
+      Caption = 'Set File Date && Time from EXIF'
       OnExecute = ActToolsFileFromMetaExecute
     end
-  end
-  object AppEvents: TApplicationEvents
-    OnIdle = AppEventsIdle
-    Left = 136
-    Top = 448
+    object ActToolsAutoOrient: TAction
+      Category = 'Tools'
+      Caption = 'Auto Orient According to EXIF'
+      OnExecute = ActToolsAutoOrientExecute
+    end
   end
   object IniFile: TJvAppIniFileStorage
     StorageOptions.BooleanStringTrueValues = 'true, YES, Y'
@@ -635,7 +635,7 @@ object MainForm: TMainForm
     AppStoragePath = 'Forms.%FORM_NAME%\'
     Options = [fpLocation]
     StoredValues = <>
-    Left = 312
+    Left = 320
     Top = 448
   end
   object PopupTools: TPopupMenu
@@ -659,6 +659,9 @@ object MainForm: TMainForm
     object SetFileDateFromPhotoMetadata1: TMenuItem
       Action = ActToolsFileFromMeta
     end
+    object AutoOrientAccordingtoMetadata1: TMenuItem
+      Action = ActToolsAutoOrient
+    end
   end
   object PopupLog: TPopupMenu
     Left = 104
@@ -677,7 +680,7 @@ object MainForm: TMainForm
     Left = 40
     Top = 456
     Bitmap = {
-      494C010105000800540010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
+      494C0101050008005C0010001000FFFFFFFF2110FFFFFFFFFFFFFFFF424D3600
       0000000000003600000028000000400000002000000001002000000000000020
       0000000000000000000000000000000000000000000000000000000000000000
       0000000000000000000000000000000000000000000000000000000000003030

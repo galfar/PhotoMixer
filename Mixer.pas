@@ -17,7 +17,7 @@ uses
 
 const
   FileTypeSeparator = ',';
-  NameFormat = '%.4d-%.2d-%.2d %.2d-%.2d-%.2d.jpg';
+  NameFormat = '%.4d-%.2d-%.2d %.2d-%.2d-%.2d-%.2d.jpg';
   
 type
   TSyncMode = (
@@ -358,7 +358,8 @@ begin
   end;           
       
   DestFile := Settings.OutputDir + Settings.NamePattern + ' ' + Format(NameFormat,
-    [YearOf(DateTime), MonthOf(DateTime), DayOf(DateTime), HourOf(DateTime), MinuteOf(DateTime), DayFot]);
+    [YearOf(DateTime), MonthOf(DateTime), DayOf(DateTime), HourOf(DateTime),
+    MinuteOf(DateTime), SecondOf(DateTime), DayFot]);
       
   if TFile.Exists(DestFile) and not DeleteFile(DestFile) then
     Bridge.ShowMessage(mtWarning, 'Failed to delete old existing file "%s". Opened in another process?', [FileName]);  
