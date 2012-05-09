@@ -12,7 +12,10 @@ uses
   FrameSelectFolders in 'FrameSelectFolders.pas' {SelectFoldersFrame: TFrame},
   FrameDialogControls in 'FrameDialogControls.pas' {DialogControlsFrame: TFrame},
   UITools in 'UITools.pas',
-  FrameSetDateTime in 'FrameSetDateTime.pas' {SetDateTimeFrame: TFrame};
+  FrameSetDateTime in 'FrameSetDateTime.pas' {SetDateTimeFrame: TFrame},
+  FrameBase in 'FrameBase.pas' {BaseFrame: TFrame},
+  FrameRefPhotoSelection in 'FrameRefPhotoSelection.pas' {RefSourceSelectionFrame: TFrame},
+  FrameCustomSourceSelection in 'FrameCustomSourceSelection.pas' {CustomSourceSelectionFrame: TFrame};
 
 {$R *.res}
 

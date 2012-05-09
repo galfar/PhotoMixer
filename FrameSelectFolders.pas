@@ -5,10 +5,10 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, rkSmartPath,
-  Helpers, Tools;
+  Helpers, Tools, FrameBase;
 
 type
-  TSelectFoldersFrame = class(TDialogFrame, IIdleHandler)
+  TSelectFoldersFrame = class(TBaseFrame)
     PathPhotos: TrkSmartPath;
     Label4: TLabel;
     BtnBrowseFolder: TButton;
@@ -18,12 +18,8 @@ type
     BtnBrowseOutFolder: TButton;
     procedure BtnBrowseFolderClick(Sender: TObject);
     procedure BtnBrowseOutFolderClick(Sender: TObject);
-  private
-    FAborted: Boolean;
   public
-    procedure DoIdle;
-    procedure AfterConstruction; override;
-    procedure BeforeDestruction; override;
+    procedure DoIdle; override;
 
     procedure Setup(const InOutSettings: TSettings.TInputOutputDirs);
     procedure GetSelection(out InOutSettings: TSettings.TInputOutputDirs);
@@ -37,18 +33,6 @@ uses
 {$R *.dfm}
 
 { TSelectFoldersFrame }
-
-procedure TSelectFoldersFrame.AfterConstruction;
-begin
-  inherited;
-  MainDataModule.RegisterIdleHandler(Self);
-end;
-
-procedure TSelectFoldersFrame.BeforeDestruction;
-begin
-  MainDataModule.UnRegister(Self);
-  inherited;
-end;
 
 procedure TSelectFoldersFrame.BtnBrowseFolderClick(Sender: TObject);
 begin

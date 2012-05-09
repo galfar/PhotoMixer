@@ -23,7 +23,7 @@ const
   SSource = 'Source';
   SOutput = 'Output';
 
-  CurrentSettingsVersion = 1;
+  CurrentSettingsVersion = 2;
 
 implementation
 
