@@ -4,13 +4,15 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
-  System.Classes, Vcl.Forms, Helpers, Tools;
+  System.Classes, Vcl.Forms, Vcl.StdCtrls, Helpers, Mixer, Tools;
 
 function SelectPhotoFolders(const Caption: string;
   var InOutSettings: TSettings.TInputOutputDirs): Boolean;
 
 function ShowSetPhotoDateTimeDialog(var InOutSettings: TSettings.TInputOutputDirs;
   var SetDateTime: TSettings.TSetDateTime): Boolean;
+
+procedure FillComboWithSources(Combo: TComboBox; Mixer: TMixer);
 
 implementation
 
@@ -95,6 +97,19 @@ begin
     Form.Free;
   end;
   Result := Accepted;
+end;
+
+procedure FillComboWithSources(Combo: TComboBox; Mixer: TMixer);
+var
+  I: Integer;
+  Src: TSource;
+begin
+  Combo.Items.Clear;
+  for I := 0 to Mixer.SourceCount - 1 do
+  begin
+    Src := Mixer.Source[I];
+    Combo.AddItem(Src.Name, nil);
+  end;
 end;
 
 end.

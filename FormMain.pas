@@ -6,11 +6,12 @@ uses
   Types, Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, rkVistaPanel, ExtCtrls, ComCtrls, JvExControls, JvPageList,
   rkSmartTabs, StdCtrls, rkGlassButton, rkSmartPath, JvExStdCtrls, ShlObj,
-  JvHtControls, JvExExtCtrls, JvExtComponent, FileCtrl,
+  JvHtControls, JvExExtCtrls, JvExtComponent, FileCtrl, Generics.Collections,
   ImgList, ActnList, AppEvnts, JvComponentBase, JvAppStorage, JvAppIniStorage,
   JvFormPlacement, IoUtils, FormAbout, Menus, DateUtils, JvRichEdit,
   ShellCtrls, ExtDlgs, Mask, JvSpin, JclFileUtils,
-  JvBalloonHint, GFImageList, Helpers, Tools, Mixer, JvExMask;
+  JvBalloonHint, GFImageList, Helpers, Tools, Mixer, JvExMask,
+  FrameCustomSourceSelection, FrameRefPhotoSelection;
 
 type
   TMainForm = class(TForm, IUIBridge, IIdleHandler)
@@ -34,7 +35,6 @@ type
     ActAddSource: TAction;
     Label6: TLabel;
     EditFileTypes: TEdit;
-    CheckSyncSources: TCheckBox;
     IniFile: TJvAppIniFileStorage;
     FormStorage: TJvFormStorage;
     Button1: TButton;
@@ -49,15 +49,8 @@ type
     PanelSrcSync: TPanel;
     RadioSyncRef: TRadioButton;
     RadioSyncShift: TRadioButton;
-    PanelSyncRef: TPanel;
-    EditSrcRefPhoto: TEdit;
-    Label5: TLabel;
-    Button3: TButton;
     PanelSyncShift: TPanel;
     Label2: TLabel;
-    PanelRefSource: TPanel;
-    LabRefSource: TLabel;
-    ComboRefSource: TComboBox;
     EditSrcSyncShift: TJvSpinEdit;
     ActToolsLoadSettings: TAction;
     ActToolsSaveSettings: TAction;
@@ -68,7 +61,6 @@ type
     EditNamePattern: TEdit;
     ActLogClear: TAction;
     ActLogCopy: TAction;
-    Images: TGFImageList;
     ProgressBar: TProgressBar;
     ControlHint: TJvBalloonHint;
     ActToolsSetDateTime: TAction;
@@ -77,6 +69,13 @@ type
     SetFileDateFromPhotoMetadata1: TMenuItem;
     ActToolsAutoOrient: TAction;
     AutoOrientAccordingtoMetadata1: TMenuItem;
+    RadioNoSync: TRadioButton;
+    CustomRefMasterFrame: TCustomSourceSelectionFrame;
+    CustomShiftMasterFrame: TCustomSourceSelectionFrame;
+    RefPhotoSourceFrame: TRefSourceSelectionFrame;
+    RefPhotoMasterFrame: TRefSourceSelectionFrame;
+    LabDefaultMasterSource: TLabel;
+    ComboDefaultMasterSource: TComboBox;
     procedure TabsMainCloseTab(Sender: TObject; Index: Integer;
       var Close: Boolean);
     procedure TabsMainTabChange(Sender: TObject);
@@ -90,14 +89,11 @@ type
     procedure BtnProcessClick(Sender: TObject);
     procedure IniFileGetFileName(Sender: TJvCustomAppStorage;
       var FileName: TFileName);
-    procedure CheckSyncSourcesClick(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure EditFileTypesChange(Sender: TObject);
     procedure BtnAboutClick(Sender: TObject);
     procedure PathOutputPathChanged(Sender: TObject);
-    procedure ComboRefSourceChange(Sender: TObject);
     procedure FormCloseQuery(Sender: TObject; var CanClose: Boolean);
-    procedure Button3Click(Sender: TObject);
     procedure RadioSyncRefClick(Sender: TObject);
     procedure RadioSyncShiftClick(Sender: TObject);
     procedure EditSrcSyncShiftChange(Sender: TObject);
@@ -111,12 +107,17 @@ type
     procedure ActToolsSetDateTimeExecute(Sender: TObject);
     procedure ActToolsFileFromMetaExecute(Sender: TObject);
     procedure ActToolsAutoOrientExecute(Sender: TObject);
+    procedure RadioNoSyncClick(Sender: TObject);
+    procedure ComboDefaultMasterSourceChange(Sender: TObject);
   private
-    Mixer: TMixer;
     Tools: TTools;
     UserDocsDir: string;
     StartTime: TDateTime;
-    LogFont: TFont;    
+    LogFont: TFont;
+    SourceCombos: TList<TComboBox>;
+
+    function GenSourceName: string;
+    function GetSourceIndex: Integer;
 
     procedure SelectSource(Index: Integer);
     procedure LoadMixerSettings(Ini: TJvAppIniFileStorage);
@@ -125,16 +126,14 @@ type
     procedure SaveToolsSettings(Ini: TJvAppIniFileStorage);
     procedure PopulateUI;
     procedure SetDefaultSettings;
-
-    function GenSourceName: string;
-    function GetSourceIndex: Integer;
+    procedure SwitchSrcSyncMode(NewMode: TSyncMode);
 
     procedure ShowControlHint(Control: TControl; const Msg: string; Icon: TJvIconKind = ikInformation;
       const Header: string = ''; VisibleTime: Integer = 1500);
-    procedure ShowControlError(Control: TControl; const Msg: string);  
-    
+    procedure ShowControlError(Control: TControl; const Msg: string);
+
     procedure TryStartingMixer;
-    
+
     // IUIBridge methods
     procedure ShowMessage(MsgType: TMessageType; const MsgFmt: string; const Args: array of const);
     procedure OnBegin;
@@ -143,8 +142,11 @@ type
 
     // IIdleHandler methods
     procedure DoIdle;
+    function GetCurrentSource: TSource;
   public
+    Mixer: TMixer;
     Version: TJclFileVersionInfo;
+    property CurrentSource: TSource read GetCurrentSource;
   end;
 
 var
@@ -153,13 +155,18 @@ var
 implementation
 
 uses
-  FormToolsSetDateTime, DataModule, PM.Consts, UITools;
+  DataModule, PM.Consts, UITools;
 
 {$R *.dfm}
 
 function TMainForm.GenSourceName: string;
 begin
   Result := SSource + ' ' + IntToStr(Mixer.SourceCount);
+end;
+
+function TMainForm.GetCurrentSource: TSource;
+begin
+  Result := Mixer.Source[GetSourceIndex];
 end;
 
 function TMainForm.GetSourceIndex: Integer;
@@ -173,9 +180,11 @@ var
   Src: TSource;
 begin
   Src := Mixer.AddSource;
+
   Src.Name := GenSourceName;
   Src.PhotoDir := UserDocsDir;
-  ComboRefSource.Items.Add(Src.Name);
+  ComboDefaultMasterSource.Items.Add(Src.Name);
+
   TabsMain.AddTab(Src.Name);
   EditSourceName.SetFocus;
 end;
@@ -267,6 +276,8 @@ begin
 end;
 
 procedure TMainForm.DoIdle;
+var
+  Mode: TSyncMode;
 begin
   if not Mixer.Running then
   begin
@@ -285,15 +296,16 @@ begin
   BtnAddSource.Enabled := not Mixer.Running;
   BtnTools.Enabled := not Mixer.Running;
 
-  LabRefSource.Visible := Mixer.Settings.SyncSources;
-  ComboRefSource.Visible := Mixer.Settings.SyncSources;
-  PanelRefSource.Visible := Mixer.Settings.SyncSources;
-  PanelSrcSync.Visible := Mixer.Settings.SyncSources;
-
   if TabsMain.ActiveTab > 0 then
   begin
-    PanelSyncRef.Visible := Mixer.Source[TabsMain.ActiveTab - 1].SyncMode = smRefPhoto;
-    PanelSyncShift.Visible := Mixer.Source[TabsMain.ActiveTab - 1].SyncMode = smExplicitShift;
+    Mode := Mixer.Source[TabsMain.ActiveTab - 1].SyncMode;
+
+    RefPhotoSourceFrame.Visible := Mode = smRefPhoto;
+    CustomRefMasterFrame.Visible := Mode = smRefPhoto;
+    RefPhotoMasterFrame.Visible := (Mode = smRefPhoto) and CustomRefMasterFrame.Checked;
+
+    PanelSyncShift.Visible := Mode = smExplicitShift;
+    CustomShiftMasterFrame.Visible := Mode = smExplicitShift;
   end;
 end;
 
@@ -325,24 +337,9 @@ begin
   EditFileTypes.Text := SDefaultFileTypes;
 end;
 
-procedure TMainForm.Button3Click(Sender: TObject);
+procedure TMainForm.ComboDefaultMasterSourceChange(Sender: TObject);
 begin
-  MainDataModule.OpenPictureDlg.InitialDir := Mixer.Source[GetSourceIndex].PhotoDir;
-  if MainDataModule.OpenPictureDlg.Execute then
-  begin
-    Mixer.Source[GetSourceIndex].RefPhoto := MainDataModule.OpenPictureDlg.FileName;
-    EditSrcRefPhoto.Text := ExtractFileName(MainDataModule.OpenPictureDlg.FileName);
-  end;
-end;
-
-procedure TMainForm.CheckSyncSourcesClick(Sender: TObject);
-begin
-  Mixer.Settings.SyncSources := CheckSyncSources.Checked;
-end;
-
-procedure TMainForm.ComboRefSourceChange(Sender: TObject);
-begin
-  Mixer.Settings.RefSource := ComboRefSource.ItemIndex;
+  Mixer.Settings.MasterSource := ComboDefaultMasterSource.ItemIndex;
 end;
 
 procedure TMainForm.EditFileTypesChange(Sender: TObject);
@@ -359,16 +356,23 @@ procedure TMainForm.EditSourceNameChange(Sender: TObject);
 var
   Src: TSource;
   Idx: Integer;
+  Combo: TComboBox;
 begin
   Assert(TabsMain.ActiveTab > 0);
   Src := Mixer.Source[TabsMain.ActiveTab - 1];
   Src.Name := EditSourceName.Text;
-  TabsMain.Tabs[TabsMain.ActiveTab] := Src.Name;     
+  TabsMain.Tabs[TabsMain.ActiveTab] := Src.Name;
   TabsMain.Invalidate;
-  Idx := ComboRefSource.ItemIndex;
-  ComboRefSource.Items[TabsMain.ActiveTab - 1] := Src.Name; 
-  if Idx = TabsMain.ActiveTab - 1 then
-    ComboRefSource.ItemIndex := Idx; // ItemIndex is reset by changing the Items
+
+  for Combo in SourceCombos do
+  begin
+    if Combo.Items.Count = 0 then
+      Continue;
+    Idx := Combo.ItemIndex;
+    Combo.Items[TabsMain.ActiveTab - 1] := Src.Name;
+    if Idx = TabsMain.ActiveTab - 1 then
+      Combo.ItemIndex := Idx; // ItemIndex is reset by changing the Items
+  end;
 end;
 
 procedure TMainForm.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
@@ -380,6 +384,11 @@ procedure TMainForm.FormCreate(Sender: TObject);
 begin
   Mixer := TMixer.Create(Self);
   Tools := TTools.Create(Self);
+
+  SourceCombos := TList<TComboBox>.Create;
+  SourceCombos.Add(ComboDefaultMasterSource);
+  SourceCombos.Add(CustomRefMasterFrame.ComboRefSource);
+  SourceCombos.Add(CustomShiftMasterFrame.ComboRefSource);
 
   UserDocsDir := PathOutput.GetSpecialFolderPath(CSIDL_MYDOCUMENTS);
   Version := TJclFileVersionInfo.Create(MainInstance);
@@ -399,6 +408,8 @@ procedure TMainForm.FormDestroy(Sender: TObject);
 begin
   SaveMixerSettings(IniFile);
   SaveToolsSettings(IniFile);
+
+  SourceCombos.Free;
 
   Mixer.Free;
   Tools.Free;
@@ -432,16 +443,15 @@ begin
   PathOutput.Path := Mixer.Settings.OutputDir; 
   EditNamePattern.Text := Mixer.Settings.NamePattern;
   EditFileTypes.Text := Mixer.Settings.FileTypes;
-  CheckSyncSources.Checked := Mixer.Settings.SyncSources;
-  
-  ComboRefSource.Items.Clear;
+
+  ComboDefaultMasterSource.Items.Clear;
   for I := 0 to Mixer.SourceCount - 1 do
   begin
     Src := Mixer.Source[I]; 
-    ComboRefSource.AddItem(Src.Name, nil);  
+    ComboDefaultMasterSource.AddItem(Src.Name, nil);
     TabsMain.AddTab(Name);
   end;
-  ComboRefSource.ItemIndex := Mixer.Settings.RefSource;
+  ComboDefaultMasterSource.ItemIndex := Mixer.Settings.MasterSource;
     
   if Mixer.SourceCount = 0 then
   begin
@@ -452,14 +462,38 @@ begin
     TabsMain.ActiveTab := 0;
 end;
 
+procedure TMainForm.SwitchSrcSyncMode(NewMode: TSyncMode);
+var
+  Src: TSource;
+begin
+  Src := Mixer.Source[GetSourceIndex];
+
+  {case Src.SyncMode of
+    smRefPhoto: Src.MasterSource := CustomRefMasterFrame.SourceIndex;
+    smExplicitShift: Src.MasterSource := CustomShiftMasterFrame.SourceIndex;
+  end;    }
+
+  Src.SyncMode := NewMode;
+
+  {case Src.SyncMode of
+    smRefPhoto: CustomRefMasterFrame.Setup(Src.MasterSource);
+    smExplicitShift: CustomShiftMasterFrame.Setup(Src.MasterSource);
+  end;  }
+end;
+
+procedure TMainForm.RadioNoSyncClick(Sender: TObject);
+begin
+  SwitchSrcSyncMode(smNone);
+end;
+
 procedure TMainForm.RadioSyncRefClick(Sender: TObject);
 begin
-  Mixer.Source[GetSourceIndex].SyncMode := smRefPhoto;
+  SwitchSrcSyncMode(smRefPhoto);
 end;
 
 procedure TMainForm.RadioSyncShiftClick(Sender: TObject);
 begin
-  Mixer.Source[GetSourceIndex].SyncMode := smExplicitShift;
+  SwitchSrcSyncMode(smExplicitShift);
 end;
 
 procedure TMainForm.SetDefaultSettings;
@@ -477,18 +511,23 @@ end;
 
 procedure TMainForm.LoadMixerSettings(Ini: TJvAppIniFileStorage);
 var
-  Count, I: Integer;
-  Src: TSource; 
-  SrcPath: string;    
+  Count, I, Version: Integer;
+  Src: TSource;
+  SrcPath: string;
 begin
   Ini.Reload;
   Mixer.Reset;
 
+  Version := Ini.ReadInteger(SSettingsOptionsPath + 'Version', 0);
+
   Mixer.Settings.OutputDir := Ini.ReadString(SSettingsOptionsPath + 'OutDir', UserDocsDir);
   Mixer.Settings.NamePattern := Ini.ReadString(SSettingsOptionsPath + 'NamePattern', 'My Album');
   Mixer.Settings.FileTypes := Ini.ReadString(SSettingsOptionsPath + 'FileTypes', SDefaultFileTypes);
-  Mixer.Settings.SyncSources := Ini.ReadBoolean(SSettingsOptionsPath + 'SyncSources', True);
-  Mixer.Settings.RefSource := Ini.ReadInteger(SSettingsOptionsPath + 'RefSource', -1);
+
+  if Version = 1 then
+    Mixer.Settings.MasterSource := Ini.ReadInteger(SSettingsOptionsPath + 'RefSource', -1)
+  else
+    Mixer.Settings.MasterSource := Ini.ReadInteger(SSettingsOptionsPath + 'MasterSource', -1);
 
   Count := Ini.ReadInteger(SSettingsSourcesPath + 'Count', 0);          
   for I := 0 to Count - 1 do
@@ -496,12 +535,14 @@ begin
     Src := Mixer.AddSource;
     SrcPath := Format(SSettingsSourcesPath + 'Source%2.2d.', [I]);
     Src.Name := Ini.ReadString(SrcPath + 'Name', 'Source ' + IntToStr(I + 1));
-    Src.PhotoDir := Ini.ReadString(SrcPath + 'PhotoDir', UserDocsDir);                
+    Src.PhotoDir := Ini.ReadString(SrcPath + 'PhotoDir', UserDocsDir);
     Src.RefPhoto := Ini.ReadString(SrcPath + 'RefPhoto', '');
-    Ini.ReadEnumeration(SrcPath + 'SyncMode', TypeInfo(TSyncMode), Src.SyncMode, Src.SyncMode);                
-    Src.RefPhoto := Ini.ReadString(SrcPath + 'RefPhoto', '');        
+    Ini.ReadEnumeration(SrcPath + 'SyncMode', TypeInfo(TSyncMode), Src.SyncMode, Src.SyncMode);
+    Src.RefPhoto := Ini.ReadString(SrcPath + 'RefPhoto', '');
     Src.ExplicitShift := Ini.ReadInteger(SrcPath + 'ExplicitShift', 0);
-  end;  
+    Src.MasterSource := Ini.ReadInteger(SrcPath + 'MasterSource', -1);
+    Src.MasterRefPhoto := Ini.ReadString(SrcPath + 'MasterRefPhoto', '');
+  end;
 
   PopulateUI;
 end;
@@ -524,28 +565,29 @@ end;
 procedure TMainForm.SaveMixerSettings(Ini: TJvAppIniFileStorage);
 var
   I: Integer;
-  Src: TSource;     
-  SrcPath: string;    
+  Src: TSource;
+  SrcPath: string;
 begin
   Ini.WriteInteger(SSettingsOptionsPath + 'Version', CurrentSettingsVersion);
   Ini.WriteString(SSettingsOptionsPath + 'OutDir', Mixer.Settings.OutputDir);
   Ini.WriteString(SSettingsOptionsPath + 'NamePattern', Mixer.Settings.NamePattern);
   Ini.WriteString(SSettingsOptionsPath + 'FileTypes', Mixer.Settings.FileTypes);
-  Ini.WriteBoolean(SSettingsOptionsPath + 'SyncSources', Mixer.Settings.SyncSources);
-  Ini.WriteInteger(SSettingsOptionsPath + 'RefSource', Mixer.Settings.RefSource);
-                         
+  Ini.WriteInteger(SSettingsOptionsPath + 'MasterSource', Mixer.Settings.MasterSource);
+
   Ini.WriteInteger(SSettingsSourcesPath + 'Count', Mixer.SourceCount);
   for I := 0 to Mixer.SourceCount - 1 do
   begin
     Src := Mixer.Source[I];
     SrcPath := Format(SSettingsSourcesPath + 'Source%2.2d.', [I]);
     Ini.WriteString(SrcPath + 'Name', Src.Name);
-    Ini.WriteString(SrcPath + 'PhotoDir', Src.PhotoDir);        
-    Ini.WriteEnumeration(SrcPath + 'SyncMode', TypeInfo(TSyncMode), Src.SyncMode);                
-    Ini.WriteString(SrcPath + 'RefPhoto', Src.RefPhoto);        
-    Ini.WriteInteger(SrcPath + 'ExplicitShift', Src.ExplicitShift);        
+    Ini.WriteString(SrcPath + 'PhotoDir', Src.PhotoDir);
+    Ini.WriteEnumeration(SrcPath + 'SyncMode', TypeInfo(TSyncMode), Src.SyncMode);
+    Ini.WriteString(SrcPath + 'RefPhoto', Src.RefPhoto);
+    Ini.WriteInteger(SrcPath + 'ExplicitShift', Src.ExplicitShift);
+    Ini.WriteInteger(SrcPath + 'MasterSource', Src.MasterSource);
+    Ini.WriteString(SrcPath + 'MasterRefPhoto', Src.MasterRefPhoto);
   end;
-  
+
   Ini.Flush;
 end;
 
@@ -583,12 +625,17 @@ begin
   if TabsMain.ActiveTab - 1 <> Index then
     TabsMain.ActiveTab := Index + 1;
   Src := Mixer.Source[Index];
+
   EditSourceName.Text := Src.Name;
-  PathSourceDir.Path := Src.PhotoDir;  
-  EditSrcRefPhoto.Text := ExtractFileName(Src.RefPhoto);
+  PathSourceDir.Path := Src.PhotoDir;
+  RefPhotoSourceFrame.Setup(Src);
+  RefPhotoMasterFrame.Setup(Src, CustomRefMasterFrame.ComboRefSource);
   EditSrcSyncShift.Value := Src.ExplicitShift;
+  RadioNoSync.Checked := Src.SyncMode = smNone;
   RadioSyncRef.Checked := Src.SyncMode = smRefPhoto;
-  RadioSyncShift.Checked := not RadioSyncRef.Checked;
+  RadioSyncShift.Checked := Src.SyncMode = smExplicitShift;
+  CustomRefMasterFrame.Setup(Src);
+  CustomShiftMasterFrame.Setup(Src);
 
   PageList.ActivePage := PageSource;
 end;
@@ -600,12 +647,19 @@ end;
 
 procedure TMainForm.TabsMainCloseTab(Sender: TObject; Index: Integer;
   var Close: Boolean);
+var
+  Combo: TComboBox;
 begin
   Close := Index > 0;
   if Close then
   begin
     Mixer.DeleteSource(Index - 1);
-    ComboRefSource.Items.Delete(Index - 1);
+    for Combo in SourceCombos do
+    begin
+      if Combo.ItemIndex = Index then
+        Combo.ItemIndex := -1;
+      Combo.Items.Delete(Index - 1);
+    end;
   end;
 end;
 
@@ -638,13 +692,13 @@ procedure TMainForm.TryStartingMixer;
         if Src.RefPhoto = '' then              
         begin
           SelectSource(I);
-          ShowControlError(EditSrcRefPhoto, 'Source reference photo not defined');
+          ShowControlError(RefPhotoSourceFrame.EditSrcRefPhoto, 'Source reference photo not defined');
           Exit(False);
         end
-        else if not TFile.Exists(Src.RefPhoto) then              
+        else if not TFile.Exists(Src.RefPhoto) then
         begin
           SelectSource(I);
-          ShowControlError(EditSrcRefPhoto, 'Source reference photo does not exist');
+          ShowControlError(RefPhotoSourceFrame.EditSrcRefPhoto, 'Source reference photo does not exist');
           Exit(False);
         end;
       end;
@@ -656,9 +710,9 @@ procedure TMainForm.TryStartingMixer;
       Exit(False);
     end;
 
-    if Mixer.Settings.SyncSources and (Mixer.Settings.RefSource < 0) then
+    if Mixer.Settings.SyncSources and (Mixer.Settings.MasterSource < 0) then
     begin
-      ShowControlError(ComboRefSource, 'Sync reference source not selected');
+      ShowControlError(ComboDefaultMasterSource, 'Sync reference source not selected');
       Exit(False);      
     end;    
 
@@ -765,7 +819,7 @@ begin
     begin
       ProgressBar.Max := Total;
       ProgressBar.Position := Current;
-    end);  
+    end);
 end;
 
 end.

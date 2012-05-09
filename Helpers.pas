@@ -4,7 +4,8 @@ interface
 
 uses
   Types, Classes, SysUtils, Windows, Controls, Forms, FileCtrl, rkSmartPath,
-  ImagingUtility, JvBalloonHint, Generics.Collections, Vcl.Dialogs, Vcl.Graphics;
+  ImagingUtility, JvBalloonHint, Generics.Collections, Vcl.Dialogs, Vcl.Graphics,
+  ShellApi;
 
 type
   TDictionaryIntInt = TDictionary<Integer, Integer>;
@@ -37,11 +38,6 @@ type
     procedure UnRegister(Handler: IIdleHandler);
   end;
 
-  TDialogFrame = class(TFrame)
-  public
-    procedure PlaceOnForm(Form: TForm; X, Y: Integer); virtual;
-  end;
-
   TNotifyRef = reference to procedure(Sender: TObject);
   // Hacky stuff to turn anonymous methods into TNotifyEvent
   // http://blog.barrkel.com/2010/01/using-anonymous-methods-in-method.html
@@ -58,20 +54,12 @@ function CopyFile(const SourceFileName, DestFileName: string;
 function IsJpeg(const FileName: string): Boolean;  
 procedure SetWinControlState(Control: TWinControl; Enabled: Boolean; ControlKeptEnabled: TControl = nil);
 function CreateDialogForm(const Caption: string): TForm;
+procedure ShellExecute(const Path: string);
 
 type
   TIconKind = TJvIconKind;
   
 implementation
-
-{ TDialogFrame }
-
-procedure TDialogFrame.PlaceOnForm(Form: TForm; X, Y: Integer);
-begin
-  Left := X;
-  Top := Y;
-  Parent := Form;
-end;
 
 constructor TSmartPointer<T>.Create(AValue: T);
 begin
@@ -217,6 +205,11 @@ begin
   Result.BorderStyle := bsSingle;
   Result.Color := clWindow;
   Result.AutoSize := True;
+end;
+
+procedure ShellExecute(const Path: string);
+begin
+  ShellAPI.ShellExecute(0, 'Open', PChar(Path), '', nil, SW_SHOWNORMAL);
 end;
 
 end.

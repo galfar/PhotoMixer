@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, ShellAPI, JvExControls, JvLabel;
+  Dialogs, StdCtrls, JvExControls, JvLabel, Helpers;
 
 type
   TAboutForm = class(TForm)
@@ -43,7 +43,7 @@ end;
 
 procedure TAboutForm.LabHomeSiteClick(Sender: TObject);
 begin
-  ShellAPI.ShellExecute(0, 'Open', SHomeSite, '', nil, SW_SHOWNORMAL);
+  ShellExecute(SHomeSite);
 end;
 
 end.

@@ -21,21 +21,26 @@ const
   
 type
   TSyncMode = (
+    smNone,
     smRefPhoto,
     smExplicitShift
   );
 
   TSource = class
+  private
+    TimeShift: Int64;
+    FileList: TStringDynArray;
+    FileCount: Integer;
   public
     Name: string;
     PhotoDir: string;
     SyncMode: TSyncMode;
     RefPhoto: string;
     ExplicitShift: Int64;
-  private     
-    TimeShift: Int64; 
-    FileList: TStringDynArray;
-    FileCount: Integer;
+    MasterSource: Integer;
+    MasterRefPhoto: string;
+
+    constructor Create;
   end;
 
   TSettings = class
@@ -44,7 +49,7 @@ type
     FileTypes: string;
     NamePattern: string;
     SyncSources: Boolean;
-    RefSource: Integer;  
+    MasterSource: Integer;
   end;
 
   IWorkerBridge = interface
@@ -92,33 +97,41 @@ type
     FAborted: Boolean;   
     FUI: IUIBridge; 
     FMixWorker: TMixWorker;       
-    function GetSource(Index: Integer): TSource; 
-    function GetSourceCount: Integer;    
-    property Sources: TSourceList read FSources;  
+    function GetSource(Index: Integer): TSource;
+    function GetSourceCount: Integer;
+    property Sources: TSourceList read FSources;
 
     // IWorkerBridge
     procedure Started;
-    procedure Finished;  
+    procedure Finished;
     procedure ShowMessage(MsgType: TMessageType; const MsgFmt: string; const Args: array of const);
     procedure Progress(Current, Total: Integer);
   public
     constructor Create(UI: IUIBridge);
     destructor Destroy; override;
-  
-    function AddSource: TSource;     
-    procedure DeleteSource(Index: Integer); 
+
+    function AddSource: TSource;
+    procedure DeleteSource(Index: Integer);
     procedure Reset;
 
     procedure Start;
     procedure Abort;
-    
+
     property Settings: TSettings read FSettings;
     property Source[Index: Integer]: TSource read GetSource;
     property SourceCount: Integer read GetSourceCount;
     property Running: Boolean read FRunning;
   end;
-  
+
 implementation
+
+{ TSource }
+
+constructor TSource.Create;
+begin
+  SyncMode := smNone;
+  MasterSource := -1;
+end;
 
 { TMixer }
 
@@ -192,17 +205,26 @@ begin
 end;
 
 function TMixer.AddSource: TSource;
-var 
+var
   Src: TSource;
 begin
-  Src := TSource.Create;  
-  FSources.Add(Src);                                   
+  Src := TSource.Create;
+  FSources.Add(Src);
   Result := Src;
 end;
 
 procedure TMixer.DeleteSource(Index: Integer);
+var
+  Src: TSource;
 begin
   FSources.Delete(Index);
+  if FSettings.MasterSource = Index then
+    FSettings.MasterSource := -1;
+  for Src in FSources do
+  begin
+    if Src.MasterSource = Index then
+      Src.MasterSource := -1;
+  end;
 end;
 
 { TMixer.TBaseWorker }
@@ -275,8 +297,8 @@ begin
 
   if IsRefPhotoNeeded then
   begin
-    Assert((Settings.RefSource >= 0) and (Settings.RefSource < Sources.Count));
-    RefSrc := Sources[Settings.RefSource];
+    Assert((Settings.MasterSource >= 0) and (Settings.MasterSource < Sources.Count));
+    RefSrc := Sources[Settings.MasterSource];
     RefFile := RefSrc.RefPhoto;
 
     RefDate := ReadPhotoDate(RefFile, FromExif);
@@ -360,7 +382,7 @@ begin
   DestFile := Settings.OutputDir + Settings.NamePattern + ' ' + Format(NameFormat,
     [YearOf(DateTime), MonthOf(DateTime), DayOf(DateTime), HourOf(DateTime),
     MinuteOf(DateTime), SecondOf(DateTime), DayFot]);
-      
+
   if TFile.Exists(DestFile) and not DeleteFile(DestFile) then
     Bridge.ShowMessage(mtWarning, 'Failed to delete old existing file "%s". Opened in another process?', [FileName]);  
             
@@ -410,7 +432,7 @@ begin
   if Settings.SyncSources then 
     PrepareReferenceTimes;
 
-  FDayDict := TDictionaryIntInt.Create;  
+  FDayDict := TDictionaryIntInt.Create;
   PrepareFileDefs;     
     
   TotalFiles := 0;
@@ -460,7 +482,5 @@ begin
     CoUninitialize(); 
   end;  
 end;
-
-
 
 end.

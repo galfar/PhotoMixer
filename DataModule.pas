@@ -4,7 +4,8 @@ interface
 
 uses
   System.SysUtils, System.Classes, System.Generics.Collections,
-  Vcl.AppEvnts, Vcl.Dialogs, Vcl.ExtDlgs, Helpers;
+  Vcl.AppEvnts, Vcl.Dialogs, Vcl.ExtDlgs, Helpers, Vcl.ImgList, Vcl.Controls,
+  GFImageList;
 
 type
   TMainDataModule = class(TDataModule, IIdleManager)
@@ -12,6 +13,7 @@ type
     OpenSettingsDialog: TOpenDialog;
     SaveSettingsDialog: TSaveDialog;
     AppEvents: TApplicationEvents;
+    Images: TGFImageList;
     procedure DataModuleCreate(Sender: TObject);
     procedure AppEventsIdle(Sender: TObject; var Done: Boolean);
     procedure DataModuleDestroy(Sender: TObject);

@@ -5,10 +5,10 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes,
   Vcl.Graphics, Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ComCtrls,
-  Helpers, Tools, System.DateUtils;
+  Helpers, Tools, System.DateUtils, FrameBase;
 
 type
-  TSetDateTimeFrame = class(TDialogFrame, IIdleHandler)
+  TSetDateTimeFrame = class(TBaseFrame)
     Label1: TLabel;
     DatePickerNew: TDateTimePicker;
     TimePickerNew: TDateTimePicker;
@@ -19,9 +19,7 @@ type
     procedure BtnSetNowClick(Sender: TObject);
   private
   public
-    procedure DoIdle;
-    procedure AfterConstruction; override;
-    procedure BeforeDestruction; override;
+    procedure DoIdle; override;
 
     procedure Setup(Settings: TSettings.TSetDateTime);
     procedure GetSettings(out Settings: TSettings.TSetDateTime);
@@ -33,18 +31,6 @@ uses
   DataModule;
 
 {$R *.dfm}
-
-procedure TSetDateTimeFrame.AfterConstruction;
-begin
-  inherited;
-  MainDataModule.RegisterIdleHandler(Self);
-end;
-
-procedure TSetDateTimeFrame.BeforeDestruction;
-begin
-  MainDataModule.UnRegister(Self);
-  inherited;
-end;
 
 procedure TSetDateTimeFrame.BtnSetNowClick(Sender: TObject);
 begin
